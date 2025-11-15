@@ -30,12 +30,11 @@
 
             <Button
                 android:id="@+id/btnSearch"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="24dp"
-                android:layout_weight="1"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
-                android:textSize="10dp"
+                android:textSize="10sp"
                 android:text="Chercher"/>
 
             <Space
@@ -44,9 +43,8 @@
 
             <Button
                 android:id="@+id/btnScanFi"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="24dp"
-                android:layout_weight="1"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
                 android:textSize="10dp"
@@ -59,9 +57,8 @@
 
             <Button
                 android:id="@+id/btnInit"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="24dp"
-                android:layout_weight="1"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
                 android:textSize="10dp"
@@ -276,14 +273,22 @@
             android:orientation="horizontal"
             android:layout_marginTop="12dp">
 
-            <TextView
-                android:id="@+id/tvNumBL"
+            <LinearLayout
+                android:id="@+id/BLContainer"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="N°BL"
-                android:maxLines="1"
-                android:ellipsize="end"/>
+                android:orientation="horizontal"
+                android:gravity="left"
+                android:layout_marginEnd="8dp"/>
+<!--            <TextView-->
+<!--                android:id="@+id/tvNumBL"-->
+<!--                android:layout_width="57dp"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:layout_weight="1"-->
+<!--                android:ellipsize="end"-->
+<!--                android:maxLines="1"-->
+<!--                android:text="N°BL" />-->
 
             <TextView
                 android:id="@+id/tvDateBL"

@@ -1,4 +1,5 @@
 package com.example.qrlookup
+import android.app.Activity
 import android.content.Context
 import android.database.SQLException
 import android.graphics.Color
@@ -38,8 +39,13 @@ import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.widget.ProgressBar
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
 import com.hierynomus.msfscc.FileAttributes
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.EnumSet
 
 class MainActivity : AppCompatActivity() {
@@ -71,13 +77,36 @@ class MainActivity : AppCompatActivity() {
     )
 
     private var current_info: AffaireInfo? = null
+    private lateinit var etSearch: EditText
+    private lateinit var btnSearch: Button
+    private lateinit var btnScanFi: Button
+
+    // ✅ Nouveau launcher moderne pour récupérer le résultat du scan
+    private val qrScanLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val scannedCode = result.data?.getStringExtra("SCANNED_CODE")
+                ?.trim()
+                .orEmpty()
+
+            if (scannedCode.isNotBlank()) {
+                // 👉 Ici on considère que le QR contient un N°Affaire OR25090256 etc.
+                loadByAffaireCode(scannedCode)
+            } else {
+                Toast.makeText(this, "QR vide ou illisible", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val etSearch = findViewById<EditText>(R.id.etSearch)
-        val btnSearch = findViewById<Button>(R.id.btnSearch)
+        etSearch   = findViewById(R.id.etSearch)
+        btnSearch  = findViewById(R.id.btnSearch)
+        btnScanFi  = findViewById(R.id.btnScanFi)
+
         val btnInit = findViewById<Button>(R.id.btnInit)
         val tvResult: TextView = findViewById(R.id.tvResult)
         val tvNumAff: TextView = findViewById(R.id.tvNumAff)
@@ -88,7 +117,7 @@ class MainActivity : AppCompatActivity() {
         val tvType: TextView = findViewById(R.id.tvType)
         val tvSerie: TextView = findViewById(R.id.tvSerie)
         val tvMarquage: TextView = findViewById(R.id.tvMarquage)
-        val tvNumBL:TextView = findViewById(R.id.tvNumBL)
+        //val tvNumBL:TextView = findViewById(R.id.tvNumBL)
         val tvDateBL:TextView = findViewById(R.id.tvDateBL)
         val tvDateCrea: TextView = findViewById(R.id.tvDateCrea)
         val tvPar: TextView = findViewById(R.id.tvPar)
@@ -116,6 +145,12 @@ class MainActivity : AppCompatActivity() {
                     etSearch.setSelection(etSearch.text.length)
                 }
             }
+        }
+
+        // 🚀 Lancement du scanner
+        btnScanFi.setOnClickListener {
+            val intent = Intent(this, QrScanActivity::class.java)
+            qrScanLauncher.launch(intent)
         }
 
         btnSearch.setOnClickListener {
@@ -198,6 +233,7 @@ class MainActivity : AppCompatActivity() {
                         current_info = info
                         runOnUiThread {
                             createDocButtons(current_info?.docs.orEmpty())
+                            createBLButton(current_info?.numbl.orEmpty())
                         }
                     } else {
                         stmt2.setString(1, inputCode)
@@ -209,6 +245,7 @@ class MainActivity : AppCompatActivity() {
                             current_info = info
                             runOnUiThread {
                                 createDocButtons(current_info?.docs.orEmpty())
+                                createBLButton(current_info?.numbl.orEmpty())
                             }
                             rs2.close()
                             stmt2.close()
@@ -257,7 +294,7 @@ class MainActivity : AppCompatActivity() {
                         setLabelValueStyle(tvType, "Type : ", info.type , true, false, R.color.black, R.color.black)
                         setLabelValueStyle(tvSerie, "N°Série : ", info.serie , true, false, R.color.black, R.color.black)
                         setLabelValueStyle(tvMarquage, "Marquage : ", info.marquage , true, false, R.color.black, R.color.black)
-                        setLabelValueStyle(tvNumBL, "N°BL : ", info.numbl , true, false, R.color.black, R.color.black)
+                        //setLabelValueStyle(tvNumBL, "N°BL : ", info.numbl , true, false, R.color.black, R.color.black)
                         setLabelValueStyle(tvDateEntre, "Entré le : ", info.dateentre , true, false,R.color.black, R.color.black)
                         setLabelValueStyle(tvDateEnreg, "Enregistré le : ", info.dateenreg , true, false,R.color.black, R.color.black)
                         setLabelValueStyle(tvDateBL, "", info.datebl , true, false,R.color.black, R.color.black)
@@ -292,7 +329,7 @@ class MainActivity : AppCompatActivity() {
             tvType.text = "Type"
             tvSerie.text = "N°Série"
             tvMarquage.text = "Marquage"
-            tvNumBL.text = "N°BL"
+            //tvNumBL.text = "N°BL"
             tvDateBL.text = "Date BL"
             tvDateCrea.text = "BL créé le"
             tvPar.text = "Par"
@@ -311,6 +348,42 @@ class MainActivity : AppCompatActivity() {
             tvResult.text = ""
             etSearch.setText("")
         }
+    }
+
+    // Bouton N°BL
+    private fun createBLButton(numbl: String) {
+        val container = findViewById<LinearLayout>(R.id.BLContainer)
+        container.removeAllViews()
+        if (numbl.isBlank()) return
+
+        val params = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            setMargins(0, 0, 16, 14)   // ← espace entre boutons
+        }
+
+        val btn = Button(this).apply{
+            text = numbl
+            textSize = 12f
+            setTextColor(Color.WHITE)
+            minHeight = 0
+            minimumHeight = 0
+            setPadding(20, 8, 20, 8)
+            background = ContextCompat.getDrawable(context, R.drawable.doc_button)
+            layoutParams = params
+
+            // 🔥 Ajout de l’icône à gauche
+            setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_file_24dp, 0, 0, 0)
+            compoundDrawablePadding = 10  // Espace entre icône et texte
+        }
+
+        btn.setOnClickListener { onBLlicked(numbl) }
+        container.addView(btn)
+    }
+
+    private fun onBLlicked(numbl:String){
+        val bl = current_info?.numbl?.trim().orEmpty()
     }
 
     // Sépare sur +, espaces, virgules, point-virgule (ex: "CV + RM, CEC")
@@ -797,5 +870,108 @@ class MainActivity : AppCompatActivity() {
     private fun hideLoading() {
         loadingDialog?.dismiss()
         loadingDialog = null
+    }
+
+    private val scanLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+            if (res.resultCode == RESULT_OK) {
+                val scanned = res.data?.getStringExtra("SCANNED_CODE")?.trim().orEmpty()
+                if (scanned.isNotEmpty()) {
+                    // Ici tu décides : c’est un N°FI ou un N°Affaire ?
+                    // Exemples de heuristiques
+                    val isAffaire = scanned.matches(Regex("^(MI|OR|SU|BE)[A-Z0-9]{6,}$"))
+                    val isFi = scanned.length == 8 && scanned.contains("/")
+
+                    if (isAffaire) {
+                        // Ta fonction “par Affaire”
+                        loadByAffaireCode(scanned)
+                    } else if (isFi) {
+                        // Remplir la zone + déclencher la recherche existante
+                        val etSearch = findViewById<EditText>(R.id.etSearch)
+                        val btnSearch = findViewById<Button>(R.id.btnSearch)
+                        etSearch.setText(scanned)
+                        btnSearch.performClick()
+
+                    } else {
+                        Toast.makeText(this, "Code non reconnu : $scanned", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+
+    private fun normalizeAffaireCode(src: String): String {
+        // "OR-20250100252" / "OR20250100252" / " MI25101400 " → "OR20250100252"
+        return src.trim().uppercase().replace(" ", "").replace("-", "").replace("/", "")
+    }
+
+    private fun loadByAffaireCode(raw: String) {
+        val code = raw.trim().uppercase()
+
+        // lifecycleScope :
+        // - fourni par AndroidX (lifecycle-runtime-ktx)
+        // - scope lié au cycle de vie de l'Activity
+        // - si l'Activity est détruite, toutes les coroutines du scope sont annulées automatiquement
+        lifecycleScope.launch(Dispatchers.IO) {
+            // launch :
+            // - démarre une nouvelle coroutine de façon asynchrone
+            // - Dispatchers.IO indique qu'on veut exécuter ce bloc sur un pool de threads dédié aux opérations I/O (réseau, SQL, fichiers...)
+
+            var found = false
+            var fi: String? = null
+            var hadError = false
+
+            try {
+                // On reste dans le contexte IO ici (thread de fond)
+
+                Class.forName("net.sourceforge.jtds.jdbc.Driver")
+                val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+                Log.d("AFF_SCAN", "Driver chargé (coroutine / IO)")
+
+                DriverManager.getConnection(url, "russe", "cia").use { conn ->
+                    Log.d("AFF_SCAN", "Connexion SQL OK (coroutine / IO)")
+
+                    conn.prepareStatement(
+                        """
+                    SELECT TOP 1 AffNoFI
+                    FROM tAffaire
+                    WHERE AffID = ?
+                    """.trimIndent()
+                    ).use { ps ->
+                        ps.setString(1, code)
+                        ps.executeQuery().use { rs ->
+                            if (rs.next()) {
+                                fi = rs.getString("AffNoFI")
+                                found = !fi.isNullOrBlank()
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                hadError = true
+                Log.e("AFF_SCAN", "ERREUR connexion SQL : ${e.message}")
+                Log.e("AFF_SCAN", Log.getStackTraceString(e))
+            }
+
+            // withContext :
+            // - permet de changer de Dispatcher à l'intérieur de la même coroutine
+            // - ici on revient sur le thread principal (UI) pour pouvoir toucher aux vues (Toast, EditText, Button...)
+            withContext(Dispatchers.Main) {
+                when {
+                    hadError -> {
+                        // this@MainActivity :
+                        // - on précise le contexte Activity pour éviter l'ambiguïté "this" (qui peut désigner la coroutine)
+                        Toast.makeText(this@MainActivity, "Erreur de connexion au serveur", Toast.LENGTH_LONG).show()
+                    }
+                    !found -> {
+                        Toast.makeText(this@MainActivity, "Affaire introuvable : $code", Toast.LENGTH_LONG).show()
+                    }
+                    else -> {
+                        // Ici on est sur le thread UI donc on peut manipuler les vues directement
+                        etSearch.setText(fi)
+                        btnSearch.performClick()
+                    }
+                }
+            }
+        }  // fin du launch : la coroutine se termine ici
     }
 }
