@@ -48,7 +48,7 @@
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
                 android:textSize="10dp"
-                android:text="Scanner N°FI"
+                android:text="Scanner N°Affaire"
                 app:iconPadding="0dp" />
 
             <Space
@@ -290,14 +290,14 @@
 <!--                android:maxLines="1"-->
 <!--                android:text="N°BL" />-->
 
-            <TextView
-                android:id="@+id/tvDateBL"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Date BL"
-                android:maxLines="1"
-                android:ellipsize="end"/>
+<!--            <TextView-->
+<!--                android:id="@+id/tvDateBL"-->
+<!--                android:layout_width="0dp"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:layout_weight="1"-->
+<!--                android:ellipsize="end"-->
+<!--                android:maxLines="1"-->
+<!--                android:text="Date BL" />-->
         </LinearLayout>
 
         <LinearLayout

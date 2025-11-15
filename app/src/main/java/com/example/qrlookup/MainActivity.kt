@@ -39,6 +39,7 @@ import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
@@ -76,6 +77,12 @@ class MainActivity : AppCompatActivity() {
         var dateenreg: String = ""
     )
 
+    data class Affaire(
+        val affId: String,
+        val fi: String?,
+        val label: String // texte qu'on affichera sur le bouton
+    )
+
     private var current_info: AffaireInfo? = null
     private lateinit var etSearch: EditText
     private lateinit var btnSearch: Button
@@ -99,6 +106,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    //region BL
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -118,7 +126,7 @@ class MainActivity : AppCompatActivity() {
         val tvSerie: TextView = findViewById(R.id.tvSerie)
         val tvMarquage: TextView = findViewById(R.id.tvMarquage)
         //val tvNumBL:TextView = findViewById(R.id.tvNumBL)
-        val tvDateBL:TextView = findViewById(R.id.tvDateBL)
+        //val tvDateBL:TextView = findViewById(R.id.tvDateBL)
         val tvDateCrea: TextView = findViewById(R.id.tvDateCrea)
         val tvPar: TextView = findViewById(R.id.tvPar)
         val tvNumFact:TextView = findViewById(R.id.tvNumFact)
@@ -233,7 +241,7 @@ class MainActivity : AppCompatActivity() {
                         current_info = info
                         runOnUiThread {
                             createDocButtons(current_info?.docs.orEmpty())
-                            createBLButton(current_info?.numbl.orEmpty())
+                            createBLButton(current_info?.numbl.orEmpty(), current_info?.datebl.orEmpty())
                         }
                     } else {
                         stmt2.setString(1, inputCode)
@@ -245,7 +253,7 @@ class MainActivity : AppCompatActivity() {
                             current_info = info
                             runOnUiThread {
                                 createDocButtons(current_info?.docs.orEmpty())
-                                createBLButton(current_info?.numbl.orEmpty())
+                                createBLButton(current_info?.numbl.orEmpty(), current_info?.datebl.orEmpty())
                             }
                             rs2.close()
                             stmt2.close()
@@ -297,7 +305,7 @@ class MainActivity : AppCompatActivity() {
                         //setLabelValueStyle(tvNumBL, "N°BL : ", info.numbl , true, false, R.color.black, R.color.black)
                         setLabelValueStyle(tvDateEntre, "Entré le : ", info.dateentre , true, false,R.color.black, R.color.black)
                         setLabelValueStyle(tvDateEnreg, "Enregistré le : ", info.dateenreg , true, false,R.color.black, R.color.black)
-                        setLabelValueStyle(tvDateBL, "", info.datebl , true, false,R.color.black, R.color.black)
+                        //setLabelValueStyle(tvDateBL, "", info.datebl , true, false,R.color.black, R.color.black)
                         setLabelValueStyle(tvDateCrea, "Créé le : ", info.datecrea , true, false,R.color.black, R.color.black)
                         setLabelValueStyle(tvPar, "Par : ", info.par , true, true, R.color.black, R.color.par)
                         setLabelValueStyle(tvNumFact, "N°Fact. : ", info.numfact , true, false, R.color.black, R.color.black)
@@ -330,7 +338,7 @@ class MainActivity : AppCompatActivity() {
             tvSerie.text = "N°Série"
             tvMarquage.text = "Marquage"
             //tvNumBL.text = "N°BL"
-            tvDateBL.text = "Date BL"
+            //tvDateBL.text = "Date BL"
             tvDateCrea.text = "BL créé le"
             tvPar.text = "Par"
             tvNumFact.text = "N°Fact."
@@ -351,7 +359,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     // Bouton N°BL
-    private fun createBLButton(numbl: String) {
+    private fun createBLButton(numbl: String, datebl:String) {
         val container = findViewById<LinearLayout>(R.id.BLContainer)
         container.removeAllViews()
         if (numbl.isBlank()) return
@@ -364,7 +372,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val btn = Button(this).apply{
-            text = numbl
+            text = numbl + " du "+datebl
             textSize = 12f
             setTextColor(Color.WHITE)
             minHeight = 0
@@ -378,14 +386,32 @@ class MainActivity : AppCompatActivity() {
             compoundDrawablePadding = 10  // Espace entre icône et texte
         }
 
-        btn.setOnClickListener { onBLlicked(numbl) }
+        btn.setOnClickListener { onBLClicked(numbl) }
         container.addView(btn)
     }
 
-    private fun onBLlicked(numbl:String){
+    private fun onBLClicked(numbl:String){
         val bl = current_info?.numbl?.trim().orEmpty()
+        // Coroutine liée à l'Activity
+        lifecycleScope.launch(Dispatchers.IO){
+            // Requête
+            val affaires = getAffairesByBl(bl)
+            withContext(Dispatchers.Main) {
+                if (affaires.isEmpty()) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Aucune affaire trouvée pour le BL $bl",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    showAffairesDialog(affaires, numbl)
+                }
+            }
+        }
     }
+    //endregion
 
+    //region Docs
     // Sépare sur +, espaces, virgules, point-virgule (ex: "CV + RM, CEC")
     //val docs = Regex("[+ ,;]+").split(docsString).map { it.trim() }.filter { it.isNotEmpty() }
     private fun createDocButtons(docs: String) {
@@ -505,6 +531,7 @@ class MainActivity : AppCompatActivity() {
             }
         }.start()
     }
+    //endregion
 
     private fun yearFromFi(fi: String): String {
         val s = fi.trim().uppercase()
@@ -974,4 +1001,102 @@ class MainActivity : AppCompatActivity() {
             }
         }  // fin du launch : la coroutine se termine ici
     }
+
+    private fun getAffairesByBl(bl: String): List<Affaire> {
+        val result = mutableListOf<Affaire>()
+
+        try {
+            Class.forName("net.sourceforge.jtds.jdbc.Driver")
+            val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+
+            DriverManager.getConnection(url, "russe", "cia").use { conn ->
+                conn.prepareStatement(
+                    """
+                SELECT AffID, AffNoFI
+                FROM tAffaire A                
+                WHERE ExpdID = ? 
+                ORDER BY AffNoFI
+                """.trimIndent()
+                ).use { ps ->
+                    ps.setString(1, bl)
+                    ps.executeQuery().use { rs ->
+                        while (rs.next()) {
+                            val affId = rs.getString("AffID")
+                            val fi = rs.getString("AffNoFI")
+                            // Le texte du bouton
+                            val label = "$affId (${fi ?: "sans FI"})"
+
+                            result.add(Affaire(affId, fi, label))
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("AFF_SCAN", "Erreur getAffairesByBl : ${e.message}")
+            Log.e("AFF_SCAN", Log.getStackTraceString(e))
+        }
+
+        return result
+    }
+
+    private fun showAffairesDialog(affaires: List<Affaire>, bl:String) {
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 32, 32, 32)
+        }
+
+        val QteAff = affaires.count()
+
+        val title = TextView(this).apply {
+            text = "Affaires du BL $bl (Qté : $QteAff)"
+            setPadding(40, 40, 40, 20)
+            background = ContextCompat.getDrawable(context, R.drawable.titlebl_button)
+            textSize = 18f
+            setTextColor(Color.WHITE)
+            setTypeface(null, Typeface.BOLD)
+            gravity = Gravity.CENTER
+        }
+
+        affaires.forEach { affaire ->
+            val btn = Button(this).apply {
+                text = affaire.label
+                setAllCaps(false)
+                textSize = 16f
+                background = ContextCompat.getDrawable(context, R.drawable.aff_button)
+                setTextColor(Color.BLACK)
+                setPadding(20, 20, 20, 20)
+
+                // Optionnel : marge entre les boutons
+                val params = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                params.setMargins(0, 15, 0, 15)
+                layoutParams = params
+
+                setOnClickListener {
+                    currentAffairesDialog?.dismiss()
+                    loadByAffaireCode(affaire.affId)
+                }
+            }
+
+            container.addView(btn)
+        }
+
+        // ⭐⭐ ScrollView ajouté ici ⭐⭐
+        val scroll = ScrollView(this).apply {
+            addView(container)
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setCustomTitle(title)
+            .setView(scroll)
+            .setNegativeButton("Fermer", null)
+            .create()
+
+        currentAffairesDialog = dialog
+        dialog.show()
+    }
+    private var currentAffairesDialog: AlertDialog? = null
 }
