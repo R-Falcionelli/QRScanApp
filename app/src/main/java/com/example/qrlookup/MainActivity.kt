@@ -80,6 +80,7 @@ class MainActivity : AppCompatActivity() {
     data class Affaire(
         val affId: String,
         val fi: String?,
+        val marquage: String?,
         val label: String // texte qu'on affichera sur le bouton
     )
 
@@ -106,7 +107,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    //region BL
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -358,6 +359,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    //region BL
     // Bouton N°BL
     private fun createBLButton(numbl: String, datebl:String) {
         val container = findViewById<LinearLayout>(R.id.BLContainer)
@@ -372,7 +374,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val btn = Button(this).apply{
-            text = numbl + " du "+datebl
+            text = "BL N°$numbl du $datebl"
             textSize = 12f
             setTextColor(Color.WHITE)
             minHeight = 0
@@ -533,79 +535,120 @@ class MainActivity : AppCompatActivity() {
     }
     //endregion
 
-    private fun yearFromFi(fi: String): String {
-        val s = fi.trim().uppercase()
-        if (s.length < 2) return ""
-        val yPrefix = when (s[0]) {
-            'F' -> "202"
-            'G' -> "203"
-            'H' -> "204"
-            else -> return ""
-        }
-        return yPrefix + s[1]  // F5 -> 2025, G0 -> 2030, H0 -> 2040
+    //region SQL
+    private fun loadByAffaireCode(raw: String) {
+        val code = raw.trim().uppercase()
+
+        // lifecycleScope :
+        // - fourni par AndroidX (lifecycle-runtime-ktx)
+        // - scope lié au cycle de vie de l'Activity
+        // - si l'Activity est détruite, toutes les coroutines du scope sont annulées automatiquement
+        lifecycleScope.launch(Dispatchers.IO) {
+            // launch :
+            // - démarre une nouvelle coroutine de façon asynchrone
+            // - Dispatchers.IO indique qu'on veut exécuter ce bloc sur un pool de threads dédié aux opérations I/O (réseau, SQL, fichiers...)
+
+            var found = false
+            var fi: String? = null
+            var hadError = false
+
+            try {
+                // On reste dans le contexte IO ici (thread de fond)
+
+                Class.forName("net.sourceforge.jtds.jdbc.Driver")
+                val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+                Log.d("AFF_SCAN", "Driver chargé (coroutine / IO)")
+
+                DriverManager.getConnection(url, "russe", "cia").use { conn ->
+                    Log.d("AFF_SCAN", "Connexion SQL OK (coroutine / IO)")
+
+                    conn.prepareStatement(
+                        """
+                    SELECT TOP 1 AffNoFI
+                    FROM tAffaire
+                    WHERE AffID = ?
+                    """.trimIndent()
+                    ).use { ps ->
+                        ps.setString(1, code)
+                        ps.executeQuery().use { rs ->
+                            if (rs.next()) {
+                                fi = rs.getString("AffNoFI")
+                                found = !fi.isNullOrBlank()
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                hadError = true
+                Log.e("AFF_SCAN", "ERREUR connexion SQL : ${e.message}")
+                Log.e("AFF_SCAN", Log.getStackTraceString(e))
+            }
+
+            // withContext :
+            // - permet de changer de Dispatcher à l'intérieur de la même coroutine
+            // - ici on revient sur le thread principal (UI) pour pouvoir toucher aux vues (Toast, EditText, Button...)
+            withContext(Dispatchers.Main) {
+                when {
+                    hadError -> {
+                        // this@MainActivity :
+                        // - on précise le contexte Activity pour éviter l'ambiguïté "this" (qui peut désigner la coroutine)
+                        Toast.makeText(this@MainActivity, "Erreur de connexion au serveur", Toast.LENGTH_LONG).show()
+                    }
+                    !found -> {
+                        Toast.makeText(this@MainActivity, "Affaire introuvable : $code", Toast.LENGTH_LONG).show()
+                    }
+                    else -> {
+                        // Ici on est sur le thread UI donc on peut manipuler les vues directement
+                        etSearch.setText(fi)
+                        btnSearch.performClick()
+                    }
+                }
+            }
+        }  // fin du launch : la coroutine se termine ici
     }
 
-    private fun smbListDir(
-        disk: com.hierynomus.smbj.share.DiskShare,
-        dir: String
-    ): List<String> {
-        return try {
-            val entries = disk.list(dir)
-            Log.d("SMB", "OK list '$dir' (${entries.size} items)")
-            entries.map { it.fileName }
+    private fun getAffairesByBl(bl: String): List<Affaire> {
+        val result = mutableListOf<Affaire>()
+
+        try {
+            Class.forName("net.sourceforge.jtds.jdbc.Driver")
+            val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+
+            DriverManager.getConnection(url, "russe", "cia").use { conn ->
+                conn.prepareStatement(
+                    """
+                SELECT AffID, AffNoFI, AffNoClientInterne
+                FROM tAffaire A                
+                WHERE ExpdID = ? 
+                ORDER BY AffNoFI
+                """.trimIndent()
+                ).use { ps ->
+                    ps.setString(1, bl)
+                    ps.executeQuery().use { rs ->
+                        while (rs.next()) {
+                            val affId = rs.getString("AffID")
+                            val fi = rs.getString("AffNoFI")
+                            val marquage = rs.getString("AffNoClientInterne")
+
+                            // Le texte du bouton
+                            val label = "$affId - $fi - ($marquage)"
+
+                            result.add(Affaire(affId, fi, marquage, label))
+                        }
+                    }
+                }
+            }
         } catch (e: Exception) {
-            Log.e("SMB", "FAIL list '$dir' : ${e.message}")
-            emptyList()
+            Log.e("AFF_SCAN", "Erreur getAffairesByBl : ${e.message}")
+            Log.e("AFF_SCAN", Log.getStackTraceString(e))
         }
+
+        return result
     }
 
-    private fun buildDocDirs(zone: String, docType: String, year: String): List<String> {
-        // on essaie avec et sans accent, pour être sûr
-        val assocAcc = "Documents associés"
-        val assocNo  = "Documents associes"
-        val baseAcc  = "$assocAcc/Documents finaux"
-        val baseNo   = "$assocNo/Documents finaux"
+    //endregion
 
-        val bases = listOf(baseAcc, baseNo)
 
-        return if (zone == "Validation" || zone == "Envoi")  {
-            bases.map { "$it/$zone/$docType" }
-        } else {
-            bases.map { "$it/$zone/$docType/$year" }
-        }
-    }
-
-    private fun normalizeFi(fi: String) = fi.replace("/", "").trim()
-
-    private fun showDocLocationPopup(doc: String, numFi: String) {
-        AlertDialog.Builder(this)
-            .setTitle("Emplacement du document $doc")
-            .setMessage("Recherche en cours... (on code la détection NAS juste après)")
-            .setPositiveButton("OK", null)
-            .show()
-    }
-    fun safeGetString(rs: ResultSet, column: String): String {
-        return try {
-            val value = rs.getString(column)
-            value ?: "" // si NULL => ""
-        } catch (e: SQLException) {
-            "" // si colonne inexistante => ""
-        }
-    }
-
-    private fun extractIndex(fileName: String): Int {
-        val m = Regex("-(\\d+)\\.pdf$", RegexOption.IGNORE_CASE).find(fileName)
-        return m?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
-    }
-
-    fun safeGetBool(rs: ResultSet, column: String): Boolean {
-        return try {
-            val value = rs.getBoolean(column)
-            value ?: false // si NULL => ""
-        } catch (e: SQLException) {
-            false // si colonne inexistante => ""
-        }
-    }
 
     fun fillFromResult(rs: ResultSet, info: AffaireInfo) {
         info.numAff = safeGetString(rs, "AffID")
@@ -787,6 +830,38 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
+    //region PDF
+    private fun openPdf(localFile: File) {
+        val uri: Uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", localFile)
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/pdf")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
+        }
+        try {
+            startActivity(Intent.createChooser(intent, "Ouvrir avec…"))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Aucune application PDF installée.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun sharePdf(localFile: File) {
+        val uri: Uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", localFile)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        try {
+            startActivity(Intent.createChooser(intent, "Partager le PDF"))
+        } catch (_: Exception) {
+            Toast.makeText(this, "Impossible de partager ce PDF.", Toast.LENGTH_LONG).show()
+        }
+    }
+    //endregion
+
+    //region Divers fonctions
     private fun findDocLocationForType(
         serverIp: String,
         shareName: String,
@@ -841,34 +916,79 @@ class MainActivity : AppCompatActivity() {
         }
         return "" to ""
     }
-    private fun openPdf(localFile: File) {
-        val uri: Uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", localFile)
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/pdf")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
+    private fun yearFromFi(fi: String): String {
+        val s = fi.trim().uppercase()
+        if (s.length < 2) return ""
+        val yPrefix = when (s[0]) {
+            'F' -> "202"
+            'G' -> "203"
+            'H' -> "204"
+            else -> return ""
         }
-        try {
-            startActivity(Intent.createChooser(intent, "Ouvrir avec…"))
+        return yPrefix + s[1]  // F5 -> 2025, G0 -> 2030, H0 -> 2040
+    }
+
+    private fun smbListDir(
+        disk: com.hierynomus.smbj.share.DiskShare,
+        dir: String
+    ): List<String> {
+        return try {
+            val entries = disk.list(dir)
+            Log.d("SMB", "OK list '$dir' (${entries.size} items)")
+            entries.map { it.fileName }
         } catch (e: Exception) {
-            Toast.makeText(this, "Aucune application PDF installée.", Toast.LENGTH_LONG).show()
+            Log.e("SMB", "FAIL list '$dir' : ${e.message}")
+            emptyList()
         }
     }
 
-    private fun sharePdf(localFile: File) {
-        val uri: Uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", localFile)
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/pdf"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        try {
-            startActivity(Intent.createChooser(intent, "Partager le PDF"))
-        } catch (_: Exception) {
-            Toast.makeText(this, "Impossible de partager ce PDF.", Toast.LENGTH_LONG).show()
+    private fun buildDocDirs(zone: String, docType: String, year: String): List<String> {
+        // on essaie avec et sans accent, pour être sûr
+        val assocAcc = "Documents associés"
+        val assocNo  = "Documents associes"
+        val baseAcc  = "$assocAcc/Documents finaux"
+        val baseNo   = "$assocNo/Documents finaux"
+
+        val bases = listOf(baseAcc, baseNo)
+
+        return if (zone == "Validation" || zone == "Envoi")  {
+            bases.map { "$it/$zone/$docType" }
+        } else {
+            bases.map { "$it/$zone/$docType/$year" }
         }
     }
 
+    private fun normalizeFi(fi: String) = fi.replace("/", "").trim()
+
+    private fun showDocLocationPopup(doc: String, numFi: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Emplacement du document $doc")
+            .setMessage("Recherche en cours... (on code la détection NAS juste après)")
+            .setPositiveButton("OK", null)
+            .show()
+    }
+    fun safeGetString(rs: ResultSet, column: String): String {
+        return try {
+            val value = rs.getString(column)
+            value ?: "" // si NULL => ""
+        } catch (e: SQLException) {
+            "" // si colonne inexistante => ""
+        }
+    }
+
+    private fun extractIndex(fileName: String): Int {
+        val m = Regex("-(\\d+)\\.pdf$", RegexOption.IGNORE_CASE).find(fileName)
+        return m?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
+    }
+
+    fun safeGetBool(rs: ResultSet, column: String): Boolean {
+        return try {
+            val value = rs.getBoolean(column)
+            value ?: false // si NULL => ""
+        } catch (e: SQLException) {
+            false // si colonne inexistante => ""
+        }
+    }
     private fun android.content.Context.toast(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
     }
@@ -910,7 +1030,7 @@ class MainActivity : AppCompatActivity() {
                     val isFi = scanned.length == 8 && scanned.contains("/")
 
                     if (isAffaire) {
-                        // Ta fonction “par Affaire”
+                        // Fonction “par Affaire”
                         loadByAffaireCode(scanned)
                     } else if (isFi) {
                         // Remplir la zone + déclencher la recherche existante
@@ -931,126 +1051,18 @@ class MainActivity : AppCompatActivity() {
         return src.trim().uppercase().replace(" ", "").replace("-", "").replace("/", "")
     }
 
-    private fun loadByAffaireCode(raw: String) {
-        val code = raw.trim().uppercase()
-
-        // lifecycleScope :
-        // - fourni par AndroidX (lifecycle-runtime-ktx)
-        // - scope lié au cycle de vie de l'Activity
-        // - si l'Activity est détruite, toutes les coroutines du scope sont annulées automatiquement
-        lifecycleScope.launch(Dispatchers.IO) {
-            // launch :
-            // - démarre une nouvelle coroutine de façon asynchrone
-            // - Dispatchers.IO indique qu'on veut exécuter ce bloc sur un pool de threads dédié aux opérations I/O (réseau, SQL, fichiers...)
-
-            var found = false
-            var fi: String? = null
-            var hadError = false
-
-            try {
-                // On reste dans le contexte IO ici (thread de fond)
-
-                Class.forName("net.sourceforge.jtds.jdbc.Driver")
-                val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
-                Log.d("AFF_SCAN", "Driver chargé (coroutine / IO)")
-
-                DriverManager.getConnection(url, "russe", "cia").use { conn ->
-                    Log.d("AFF_SCAN", "Connexion SQL OK (coroutine / IO)")
-
-                    conn.prepareStatement(
-                        """
-                    SELECT TOP 1 AffNoFI
-                    FROM tAffaire
-                    WHERE AffID = ?
-                    """.trimIndent()
-                    ).use { ps ->
-                        ps.setString(1, code)
-                        ps.executeQuery().use { rs ->
-                            if (rs.next()) {
-                                fi = rs.getString("AffNoFI")
-                                found = !fi.isNullOrBlank()
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                hadError = true
-                Log.e("AFF_SCAN", "ERREUR connexion SQL : ${e.message}")
-                Log.e("AFF_SCAN", Log.getStackTraceString(e))
-            }
-
-            // withContext :
-            // - permet de changer de Dispatcher à l'intérieur de la même coroutine
-            // - ici on revient sur le thread principal (UI) pour pouvoir toucher aux vues (Toast, EditText, Button...)
-            withContext(Dispatchers.Main) {
-                when {
-                    hadError -> {
-                        // this@MainActivity :
-                        // - on précise le contexte Activity pour éviter l'ambiguïté "this" (qui peut désigner la coroutine)
-                        Toast.makeText(this@MainActivity, "Erreur de connexion au serveur", Toast.LENGTH_LONG).show()
-                    }
-                    !found -> {
-                        Toast.makeText(this@MainActivity, "Affaire introuvable : $code", Toast.LENGTH_LONG).show()
-                    }
-                    else -> {
-                        // Ici on est sur le thread UI donc on peut manipuler les vues directement
-                        etSearch.setText(fi)
-                        btnSearch.performClick()
-                    }
-                }
-            }
-        }  // fin du launch : la coroutine se termine ici
-    }
-
-    private fun getAffairesByBl(bl: String): List<Affaire> {
-        val result = mutableListOf<Affaire>()
-
-        try {
-            Class.forName("net.sourceforge.jtds.jdbc.Driver")
-            val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
-
-            DriverManager.getConnection(url, "russe", "cia").use { conn ->
-                conn.prepareStatement(
-                    """
-                SELECT AffID, AffNoFI
-                FROM tAffaire A                
-                WHERE ExpdID = ? 
-                ORDER BY AffNoFI
-                """.trimIndent()
-                ).use { ps ->
-                    ps.setString(1, bl)
-                    ps.executeQuery().use { rs ->
-                        while (rs.next()) {
-                            val affId = rs.getString("AffID")
-                            val fi = rs.getString("AffNoFI")
-                            // Le texte du bouton
-                            val label = "$affId (${fi ?: "sans FI"})"
-
-                            result.add(Affaire(affId, fi, label))
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("AFF_SCAN", "Erreur getAffairesByBl : ${e.message}")
-            Log.e("AFF_SCAN", Log.getStackTraceString(e))
-        }
-
-        return result
-    }
-
     private fun showAffairesDialog(affaires: List<Affaire>, bl:String) {
 
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(32, 32, 32, 32)
+            setPadding(10, 32, 10, 32)
         }
 
         val QteAff = affaires.count()
 
         val title = TextView(this).apply {
             text = "Affaires du BL $bl (Qté : $QteAff)"
-            setPadding(40, 40, 40, 20)
+            setPadding(20, 40, 20, 20)
             background = ContextCompat.getDrawable(context, R.drawable.titlebl_button)
             textSize = 18f
             setTextColor(Color.WHITE)
@@ -1062,10 +1074,10 @@ class MainActivity : AppCompatActivity() {
             val btn = Button(this).apply {
                 text = affaire.label
                 setAllCaps(false)
-                textSize = 16f
+                textSize = 14f
                 background = ContextCompat.getDrawable(context, R.drawable.aff_button)
                 setTextColor(Color.BLACK)
-                setPadding(20, 20, 20, 20)
+                setPadding(5, 10, 5, 10)
 
                 // Optionnel : marge entre les boutons
                 val params = LinearLayout.LayoutParams(
@@ -1099,4 +1111,5 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
     private var currentAffairesDialog: AlertDialog? = null
+    //endregion
 }
