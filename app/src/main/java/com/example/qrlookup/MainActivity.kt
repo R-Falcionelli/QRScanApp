@@ -47,6 +47,7 @@ import com.hierynomus.msfscc.FileAttributes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.w3c.dom.Text
 import java.util.EnumSet
 
 class MainActivity : AppCompatActivity() {
@@ -1051,15 +1052,7 @@ class MainActivity : AppCompatActivity() {
         return src.trim().uppercase().replace(" ", "").replace("-", "").replace("/", "")
     }
 
-    private fun showAffairesDialog(affaires: List<Affaire>, bl:String) {
-
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(10, 32, 10, 32)
-        }
-
-        val QteAff = affaires.count()
-
+    private fun buildTitle(bl:String, QteAff: Int): TextView{
         val title = TextView(this).apply {
             text = "Affaires du BL $bl (Qté : $QteAff)"
             setPadding(20, 40, 20, 20)
@@ -1069,40 +1062,51 @@ class MainActivity : AppCompatActivity() {
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
         }
+        return title
+    }
+    private fun showAffairesDialog(affaires: List<Affaire>, bl:String) {
 
-        affaires.forEach { affaire ->
-            val btn = Button(this).apply {
-                text = affaire.label
-                setAllCaps(false)
-                textSize = 14f
-                background = ContextCompat.getDrawable(context, R.drawable.aff_button)
-                setTextColor(Color.BLACK)
-                setPadding(5, 10, 5, 10)
-
-                // Optionnel : marge entre les boutons
-                val params = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                params.setMargins(0, 15, 0, 15)
-                layoutParams = params
-
-                setOnClickListener {
-                    currentAffairesDialog?.dismiss()
-                    loadByAffaireCode(affaire.affId)
-                }
-            }
-
-            container.addView(btn)
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 32, 32, 32)
         }
 
-        // ⭐⭐ ScrollView ajouté ici ⭐⭐
+        val QteAff = affaires.count()
+
+        // Pour chaque affaire → on crée une CardView
+        affaires.forEach { affaire ->
+
+            val cardView = layoutInflater.inflate(
+                R.layout.item_affaire_card,
+                container,
+                false
+            )
+
+            // On récupère les TextView
+            val tvAffaire = cardView.findViewById<TextView>(R.id.tvAffaire)
+            val tvFi = cardView.findViewById<TextView>(R.id.tvFi)
+            val tvMarquage = cardView.findViewById<TextView>(R.id.tvMarquage)
+
+            // On injecte les données
+            tvAffaire.text = "N°Affaire : ${affaire.affId}"
+            tvFi.text = "N°FI : ${affaire.fi ?: "Aucun"}"
+            tvMarquage.text = "N°Interne : ${affaire.marquage ?: "Aucun"}"
+
+            // Action au clic : on ferme le dialog et on charge l’affaire
+            cardView.setOnClickListener {
+                currentAffairesDialog?.dismiss()
+                loadByAffaireCode(affaire.affId)
+            }
+
+            container.addView(cardView)
+        }
+
         val scroll = ScrollView(this).apply {
             addView(container)
         }
 
         val dialog = AlertDialog.Builder(this)
-            .setCustomTitle(title)
+            .setCustomTitle(buildTitle(bl, QteAff))
             .setView(scroll)
             .setNegativeButton("Fermer", null)
             .create()
