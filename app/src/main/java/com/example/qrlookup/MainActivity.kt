@@ -82,6 +82,7 @@ class MainActivity : AppCompatActivity() {
         val affId: String,
         val fi: String?,
         val marquage: String?,
+        val serie: String?,
         val label: String // texte qu'on affichera sur le bouton
     )
 
@@ -449,7 +450,7 @@ class MainActivity : AppCompatActivity() {
                 compoundDrawablePadding = 10  // Espace entre icône et texte
             }
 
-            btn.setOnClickListener { onDocClicked(doc) }
+            btn.setOnClickListener { onDocClicked(normalizeDocType(doc)) }
             container.addView(btn)
         }
     }
@@ -537,25 +538,42 @@ class MainActivity : AppCompatActivity() {
     //endregion
 
     //region SQL
+    private fun findFiForCode(conn: java.sql.Connection, code: String): String? {
+        // On choisit la requête SQL en fonction du format du code
+        val sql = if (code.startsWith("OR-")) {
+            """
+        SELECT A.AffNoFI
+        FROM tFlashQr F
+        INNER JOIN tAffaire A on A.AffID = F.AffID
+        WHERE F.QrId = ?
+        """.trimIndent()
+        } else {
+            """
+        SELECT TOP 1 AffNoFI
+        FROM tAffaire
+        WHERE AffID = ?
+        """.trimIndent()
+        }
+
+        conn.prepareStatement(sql).use { ps ->
+            ps.setString(1, code)
+            ps.executeQuery().use { rs ->
+                return if (rs.next()) {
+                    rs.getString("AffNoFI")
+                } else {
+                    null
+                }
+            }
+        }
+    }
     private fun loadByAffaireCode(raw: String) {
         val code = raw.trim().uppercase()
 
-        // lifecycleScope :
-        // - fourni par AndroidX (lifecycle-runtime-ktx)
-        // - scope lié au cycle de vie de l'Activity
-        // - si l'Activity est détruite, toutes les coroutines du scope sont annulées automatiquement
         lifecycleScope.launch(Dispatchers.IO) {
-            // launch :
-            // - démarre une nouvelle coroutine de façon asynchrone
-            // - Dispatchers.IO indique qu'on veut exécuter ce bloc sur un pool de threads dédié aux opérations I/O (réseau, SQL, fichiers...)
-
-            var found = false
             var fi: String? = null
             var hadError = false
 
             try {
-                // On reste dans le contexte IO ici (thread de fond)
-
                 Class.forName("net.sourceforge.jtds.jdbc.Driver")
                 val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
                 Log.d("AFF_SCAN", "Driver chargé (coroutine / IO)")
@@ -563,21 +581,7 @@ class MainActivity : AppCompatActivity() {
                 DriverManager.getConnection(url, "russe", "cia").use { conn ->
                     Log.d("AFF_SCAN", "Connexion SQL OK (coroutine / IO)")
 
-                    conn.prepareStatement(
-                        """
-                    SELECT TOP 1 AffNoFI
-                    FROM tAffaire
-                    WHERE AffID = ?
-                    """.trimIndent()
-                    ).use { ps ->
-                        ps.setString(1, code)
-                        ps.executeQuery().use { rs ->
-                            if (rs.next()) {
-                                fi = rs.getString("AffNoFI")
-                                found = !fi.isNullOrBlank()
-                            }
-                        }
-                    }
+                    fi = findFiForCode(conn, code)
                 }
             } catch (e: Exception) {
                 hadError = true
@@ -585,27 +589,31 @@ class MainActivity : AppCompatActivity() {
                 Log.e("AFF_SCAN", Log.getStackTraceString(e))
             }
 
-            // withContext :
-            // - permet de changer de Dispatcher à l'intérieur de la même coroutine
-            // - ici on revient sur le thread principal (UI) pour pouvoir toucher aux vues (Toast, EditText, Button...)
+            val found = !fi.isNullOrBlank()
+
             withContext(Dispatchers.Main) {
                 when {
                     hadError -> {
-                        // this@MainActivity :
-                        // - on précise le contexte Activity pour éviter l'ambiguïté "this" (qui peut désigner la coroutine)
-                        Toast.makeText(this@MainActivity, "Erreur de connexion au serveur", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Erreur de connexion au serveur",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                     !found -> {
-                        Toast.makeText(this@MainActivity, "Affaire introuvable : $code", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Affaire introuvable : $code",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                     else -> {
-                        // Ici on est sur le thread UI donc on peut manipuler les vues directement
                         etSearch.setText(fi)
                         btnSearch.performClick()
                     }
                 }
             }
-        }  // fin du launch : la coroutine se termine ici
+        }
     }
 
     private fun getAffairesByBl(bl: String): List<Affaire> {
@@ -618,7 +626,7 @@ class MainActivity : AppCompatActivity() {
             DriverManager.getConnection(url, "russe", "cia").use { conn ->
                 conn.prepareStatement(
                     """
-                SELECT AffID, AffNoFI, AffNoClientInterne
+                SELECT AffID, AffNoFI, AffNoClientInterne, AffSerie
                 FROM tAffaire A                
                 WHERE ExpdID = ? 
                 ORDER BY AffNoFI
@@ -630,11 +638,12 @@ class MainActivity : AppCompatActivity() {
                             val affId = rs.getString("AffID")
                             val fi = rs.getString("AffNoFI")
                             val marquage = rs.getString("AffNoClientInterne")
+                            val serie = rs.getString("AffSerie")
 
                             // Le texte du bouton
                             val label = "$affId - $fi - ($marquage)"
 
-                            result.add(Affaire(affId, fi, marquage, label))
+                            result.add(Affaire(affId, fi, marquage, serie, label))
                         }
                     }
                 }
@@ -959,6 +968,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun normalizeDocType(type:String):String{
+        val t = type.uppercase()
+        return when {
+            t.startsWith("CEC") -> "CEC"
+            else -> t
+        }
+    }
     private fun normalizeFi(fi: String) = fi.replace("/", "").trim()
 
     private fun showDocLocationPopup(doc: String, numFi: String) {
@@ -1086,10 +1102,12 @@ class MainActivity : AppCompatActivity() {
             val tvAffaire = cardView.findViewById<TextView>(R.id.tvAffaire)
             val tvFi = cardView.findViewById<TextView>(R.id.tvFi)
             val tvMarquage = cardView.findViewById<TextView>(R.id.tvMarquage)
+            val tvSerie = cardView.findViewById<TextView>(R.id.tvSerie)
 
             // On injecte les données
             tvAffaire.text = "N°Affaire : ${affaire.affId}"
             tvFi.text = "N°FI : ${affaire.fi ?: "Aucun"}"
+            tvSerie.text = "N°Série : ${affaire.serie ?: "Aucun"}"
             tvMarquage.text = "N°Interne : ${affaire.marquage ?: "Aucun"}"
 
             // Action au clic : on ferme le dialog et on charge l’affaire

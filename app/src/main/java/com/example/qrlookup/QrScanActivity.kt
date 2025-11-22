@@ -13,6 +13,8 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import android.util.Log
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -23,18 +25,46 @@ class QrScanActivity : AppCompatActivity() {
     private var cameraProvider: ProcessCameraProvider? = null
     private var processing = false
 
+    // On déclare une variable 'camPermission'.
+    // Elle va servir à demander la permission CAMERA à l'utilisateur.
     private val camPermission = registerForActivityResult(
+
+        // On utilise ici un "contrat" fourni par Android :
+        // ActivityResultContracts.RequestPermission()
+        // → Android affichera le popup standard de permission caméra.
         ActivityResultContracts.RequestPermission()
+
+        // ▼ ▼ ▼ À partir d'ici, on passe une LAMBDA ★
+        // C’est la fonction qui sera exécutée APRÈS la réponse de l’utilisateur.
+        // Le paramètre 'granted' contiendra TRUE (autorisé) ou FALSE (refusé).
     ) { granted ->
-        if (granted) startCamera()
+
+        // 'granted' == true → permission acceptée
+        if (granted) {
+
+            // On démarre réellement la caméra
+            startCamera()
+        }
+        // Sinon : 'granted' == false → permission refusée
         else {
+
+            // On affiche une boîte de dialogue expliquant le refus
             AlertDialog.Builder(this)
                 .setTitle("Caméra")
                 .setMessage("Permission refusée, impossible de scanner.")
-                .setPositiveButton("OK") { _, _ -> finish() }
+
+                // Ici, on définit ce qui se passe quand on clique "OK"
+                // La lambda prend 2 paramètres (dialog, boutonIndex)
+                // mais on ne les utilise pas → on met "_"
+                .setPositiveButton("OK") { _, _ ->
+
+                    // On ferme l’activité de scan
+                    finish()
+                }
                 .show()
         }
     }
+// Fin de la lambda
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,8 +87,12 @@ class QrScanActivity : AppCompatActivity() {
                     it.setSurfaceProvider(previewView.surfaceProvider)
                 }
 
+                val strategy = ResolutionSelector.Builder().setResolutionStrategy(ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY).build()
+
                 val analysis = ImageAnalysis.Builder()
+                    .setResolutionSelector(strategy)
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
                     .build().also {
                         it.setAnalyzer(cameraExecutor!!, QrAnalyzer { result ->
                             if (!processing) {

@@ -33,6 +33,14 @@
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/tvSerie"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="N°Série"
+            android:paddingTop="4dp"
+            android:textSize="14sp"/>
+
+        <TextView
             android:id="@+id/tvMarquage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
