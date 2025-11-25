@@ -17,16 +17,16 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="0dp"
             android:hint="Saisir N°FI"
-            android:maxLength="8"
             android:inputType="text|textCapCharacters"
-            android:textStyle="bold"/>
+            android:maxLength="8"
+            android:textStyle="bold" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:layout_marginTop="12dp"
             android:gravity="center"
-            android:layout_marginTop="12dp">
+            android:orientation="horizontal">
 
             <Button
                 android:id="@+id/btnSearch"
@@ -34,12 +34,12 @@
                 android:layout_height="24dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
-                android:textSize="10sp"
-                android:text="Chercher"/>
+                android:text="Chercher"
+                android:textSize="10sp" />
 
             <Space
                 android:layout_width="12dp"
-                android:layout_height="0dp"/>
+                android:layout_height="0dp" />
 
             <Button
                 android:id="@+id/btnScanFi"
@@ -47,13 +47,13 @@
                 android:layout_height="24dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
-                android:textSize="10dp"
                 android:text="Scanner N°Affaire"
+                android:textSize="10dp"
                 app:iconPadding="0dp" />
 
             <Space
                 android:layout_width="12dp"
-                android:layout_height="0dp"/>
+                android:layout_height="0dp" />
 
             <Button
                 android:id="@+id/btnInit"
@@ -61,8 +61,8 @@
                 android:layout_height="24dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
-                android:textSize="10dp"
-                android:text="Effacer"/>
+                android:text="Effacer"
+                android:textSize="10dp" />
 
         </LinearLayout>
 
@@ -70,7 +70,7 @@
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:layout_marginTop="16dp"
-            android:background="#33000000"/>
+            android:background="#33000000" />
 
         <!-- SECTION 2 — Identification -->
         <TextView
@@ -79,13 +79,13 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="N°FI"
-            android:textStyle="bold"/>
+            android:textStyle="bold" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="6dp">
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/tvNumAff"
@@ -93,7 +93,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="N°Affaire"
-                android:textStyle="bold"/>
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tvPosit"
@@ -101,7 +101,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Position"
-                android:textStyle="bold"/>
+                android:textStyle="bold" />
         </LinearLayout>
 
         <TextView
@@ -109,14 +109,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
+            android:clickable="true"
+            android:focusable="true"
             android:text="Client"
-            android:textStyle="bold"/>
+            android:textStyle="bold" />
 
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:layout_marginTop="12dp"
-            android:background="#19000000"/>
+            android:background="#19000000" />
 
         <!-- SECTION 3 — Appareil -->
         <TextView
@@ -124,41 +126,41 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="Appareil"/>
+            android:text="Appareil" />
 
         <TextView
             android:id="@+id/tvMarque"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="Marque"/>
+            android:text="Marque" />
 
         <TextView
             android:id="@+id/tvType"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="Type"/>
+            android:text="Type" />
 
         <TextView
             android:id="@+id/tvSerie"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="N°Série"/>
+            android:text="N°Série" />
 
         <TextView
             android:id="@+id/tvMarquage"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="Marquage"/>
+            android:text="Marquage" />
 
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:layout_marginTop="12dp"
-            android:background="#19000000"/>
+            android:background="#19000000" />
 
         <!-- SECTION 4 — Suivi -->
         <TextView
@@ -166,64 +168,65 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="Entré le"/>
+            android:text="Entré le" />
 
         <TextView
             android:id="@+id/tvDateEnreg"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="Enregistré le"/>
+            android:text="Enregistré le" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
             android:layout_marginTop="6dp"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
             <CheckBox
                 android:id="@+id/chkFinterv"
                 style="@style/CompactCheckBox"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Fin Intervention"
-                android:clickable="false"/>
+                android:clickable="false"
+                android:text="Fin Intervention" />
 
             <Space
                 android:layout_width="16dp"
-                android:layout_height="0dp"/>
+                android:layout_height="0dp" />
 
             <TextView
                 android:id="@+id/tvDateFin"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Date Fin"/>
+                android:text="Date Fin" />
         </LinearLayout>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
             android:layout_marginTop="10dp"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
             <CheckBox
                 android:id="@+id/chkCF"
                 style="@style/CompactCheckBox"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Contrôle Final"
-                android:clickable="false"/>
+                android:clickable="false"
+                android:text="Contrôle Final" />
 
             <Space
                 android:layout_width="16dp"
-                android:layout_height="0dp"/>
+                android:layout_height="0dp" />
 
             <TextView
                 android:id="@+id/tvDateCF"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Date CF"/>
+                android:text="Date CF" />
         </LinearLayout>
 
         <TextView
@@ -237,156 +240,157 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
             android:layout_marginTop="6dp"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
             <!-- Conteneur pour les boutons Docs -->
             <LinearLayout
                 android:id="@+id/docsContainer"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
                 android:layout_weight="1"
-                android:orientation="horizontal"
                 android:gravity="left"
-                android:layout_marginEnd="8dp"/>
+                android:orientation="horizontal" />
 
             <TextView
                 android:id="@+id/tvConclusion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="CONCLUSION"
-                android:textStyle="bold"
                 android:paddingLeft="16dp"
-                android:paddingRight="16dp"/>
+                android:paddingRight="16dp"
+                android:text="CONCLUSION"
+                android:textStyle="bold" />
         </LinearLayout>
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:layout_marginTop="12dp"
-            android:background="#19000000"/>
+            android:background="#19000000" />
 
         <!-- SECTION 5 — Expédition / Facturation -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="12dp">
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
 
             <LinearLayout
                 android:id="@+id/BLContainer"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
                 android:layout_weight="1"
-                android:orientation="horizontal"
                 android:gravity="left"
-                android:layout_marginEnd="8dp"/>
-<!--            <TextView-->
-<!--                android:id="@+id/tvNumBL"-->
-<!--                android:layout_width="57dp"-->
-<!--                android:layout_height="wrap_content"-->
-<!--                android:layout_weight="1"-->
-<!--                android:ellipsize="end"-->
-<!--                android:maxLines="1"-->
-<!--                android:text="N°BL" />-->
+                android:orientation="horizontal" />
+            <!--            <TextView-->
+            <!--                android:id="@+id/tvNumBL"-->
+            <!--                android:layout_width="57dp"-->
+            <!--                android:layout_height="wrap_content"-->
+            <!--                android:layout_weight="1"-->
+            <!--                android:ellipsize="end"-->
+            <!--                android:maxLines="1"-->
+            <!--                android:text="N°BL" />-->
 
-<!--            <TextView-->
-<!--                android:id="@+id/tvDateBL"-->
-<!--                android:layout_width="0dp"-->
-<!--                android:layout_height="wrap_content"-->
-<!--                android:layout_weight="1"-->
-<!--                android:ellipsize="end"-->
-<!--                android:maxLines="1"-->
-<!--                android:text="Date BL" />-->
+            <!--            <TextView-->
+            <!--                android:id="@+id/tvDateBL"-->
+            <!--                android:layout_width="0dp"-->
+            <!--                android:layout_height="wrap_content"-->
+            <!--                android:layout_weight="1"-->
+            <!--                android:ellipsize="end"-->
+            <!--                android:maxLines="1"-->
+            <!--                android:text="Date BL" />-->
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="6dp">
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/tvDateCrea"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="BL créé le"
+                android:ellipsize="end"
                 android:maxLines="1"
-                android:ellipsize="end"/>
+                android:text="BL créé le" />
 
             <TextView
                 android:id="@+id/tvPar"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Par"
+                android:ellipsize="end"
                 android:maxLines="1"
-                android:ellipsize="end"/>
+                android:text="Par" />
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="6dp">
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/tvNumFact"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="N°Fact."
+                android:ellipsize="end"
                 android:maxLines="1"
-                android:ellipsize="end"/>
+                android:text="N°Fact." />
 
             <TextView
                 android:id="@+id/tvDateFact"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Date Facture"
+                android:ellipsize="end"
                 android:maxLines="1"
-                android:ellipsize="end"/>
+                android:text="Date Facture" />
         </LinearLayout>
 
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:layout_marginTop="12dp"
-            android:background="#19000000"/>
+            android:background="#19000000" />
 
         <!-- SECTION 6 — Emplacement -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
             android:layout_marginTop="12dp"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/tvLblEmp"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
                 android:text="Emplacement"
-                android:textStyle="bold"
-                android:layout_marginEnd="8dp"/>
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tvResult"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text=""
-                android:textStyle="bold"
-                android:textColor="#FFFFFF"
                 android:background="#006400"
                 android:paddingLeft="10dp"
                 android:paddingRight="10dp"
-                android:visibility="gone"/>
+                android:text=""
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:visibility="gone" />
         </LinearLayout>
 
         <Space
             android:layout_width="match_parent"
-            android:layout_height="24dp"/>
+            android:layout_height="24dp" />
     </LinearLayout>
 </ScrollView>

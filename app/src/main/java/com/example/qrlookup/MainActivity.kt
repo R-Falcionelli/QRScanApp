@@ -34,6 +34,7 @@ import java.io.FileOutputStream
 import java.sql.DriverManager
 import java.sql.ResultSet
 import android.content.Intent
+import android.graphics.Paint
 import android.net.Uri
 import android.util.Log
 import android.view.Gravity
@@ -43,12 +44,16 @@ import android.widget.ScrollView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.hierynomus.msfscc.FileAttributes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.w3c.dom.Text
+import java.sql.Connection
 import java.util.EnumSet
+import androidx.recyclerview.widget.RecyclerView
+import java.sql.Date
 
 class MainActivity : AppCompatActivity() {
     data class AffaireInfo(
@@ -76,6 +81,7 @@ class MainActivity : AppCompatActivity() {
         var conclusion: String = "",
         var dateentre: String = "",
         var dateenreg: String = ""
+        //var IdClient: String = ""
     )
 
     data class Affaire(
@@ -86,10 +92,24 @@ class MainActivity : AppCompatActivity() {
         val label: String // texte qu'on affichera sur le bouton
     )
 
+    data class ClientAffaire(
+        val affId: String,
+        val affNoFI: String?,
+        val positAff: String?,
+        val designation: String?,
+        val marque: String?,
+        val type: String?,
+        val serie: String?,
+        val interne: String?,
+        val bl: String?,
+        val blDate: Date?
+    )
+
     private var current_info: AffaireInfo? = null
     private lateinit var etSearch: EditText
     private lateinit var btnSearch: Button
     private lateinit var btnScanFi: Button
+    private var currentClientId: Int? = null
 
     // ✅ Nouveau launcher moderne pour récupérer le résultat du scan
     private val qrScanLauncher = registerForActivityResult(
@@ -158,6 +178,41 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        tvClient.setOnClickListener {
+            val clientId = currentClientId
+
+            if (clientId==0) {
+                Toast.makeText(this, "Client inconnu", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            lifecycleScope.launch(Dispatchers.IO) {
+                var affaires: List<ClientAffaire> = emptyList()
+                var hadError = false
+
+                try {
+                    Class.forName("net.sourceforge.jtds.jdbc.Driver")
+                    val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+
+                    DriverManager.getConnection(url, "russe", "cia").use { conn ->
+                        affaires = getAffairesByClient(conn, clientId)
+                    }
+                } catch (e: Exception) {
+                    hadError = true
+                    Log.e("AFF_SCAN", "Erreur getAffairesByClient : ${e.message}")
+                    Log.e("AFF_SCAN", Log.getStackTraceString(e))
+                }
+
+                withContext(Dispatchers.Main) {
+                    when {
+                        hadError -> Toast.makeText(this@MainActivity, "Erreur de connexion au serveur", Toast.LENGTH_LONG).show()
+                        affaires.isEmpty() -> Toast.makeText(this@MainActivity, "Aucune affaire pour ce client", Toast.LENGTH_LONG).show()
+                        else -> showClientAffairesDialog(affaires)
+                    }
+                }
+            }
+        }
+
         // 🚀 Lancement du scanner
         btnScanFi.setOnClickListener {
             val intent = Intent(this, QrScanActivity::class.java)
@@ -185,7 +240,7 @@ class MainActivity : AppCompatActivity() {
                     val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
                     val conn = DriverManager.getConnection(url, "russe", "cia")
                     val stmt = conn.prepareStatement("""
-                        SELECT  trEtageres.EtgCode, tAffaire.AffID, tAffaire.AffNoFI,
+                        SELECT  trEtageres.EtgCode, tAffaire.AffID, tAffaire.AffNoFI, tAffaire.CltID as ClientId, 
                                 isnull(tClient.CltCodMichelin, '') + ' ' + isnull(tClient.CltNom, '') as Client,
                                 tAffaire.AffDesignation, 
                                 tAffaire.AffMarque, tAffaire.AffType, tAffaire.AffSerie, tAffaire.AffNoClientInterne,
@@ -212,7 +267,7 @@ class MainActivity : AppCompatActivity() {
                     """.trimIndent())
 
                     val stmt2 = conn.prepareStatement("""
-                            SELECT tAffaire.AffID, tAffaire.AffNoFI,  tAffaire.AffDesignation, tAffaire.AffMarque, 
+                            SELECT tAffaire.AffID, tAffaire.AffNoFI,  tAffaire.AffDesignation, tAffaire.AffMarque, tAffaire.CltID as ClientId,
                                    tAffaire.AffType, tAffaire.AffSerie, tAffaire.AffNoClientInterne,
                                    isnull(tClient.CltCodMichelin, '') + ' ' + isnull(tClient.CltNom, '') as Client,
                                    isnull(tAffaire.ExpdID, '') as NumBL, 
@@ -240,6 +295,7 @@ class MainActivity : AppCompatActivity() {
                     if (rs.next()) {
                         found = true
                         info.etgCode = safeGetString(rs, "EtgCode")
+                        currentClientId = safeGetInt(rs, "ClientId")
                         fillFromResult(rs, info)
                         current_info = info
                         runOnUiThread {
@@ -252,6 +308,7 @@ class MainActivity : AppCompatActivity() {
                         if (rs2.next()) {
                             found = true
                             info.etgCode = "" // pas dispo ici
+                            currentClientId = safeGetInt(rs2, "ClientId")
                             fillFromResult(rs2, info)
                             current_info = info
                             runOnUiThread {
@@ -300,7 +357,7 @@ class MainActivity : AppCompatActivity() {
                         setLabelValueStyle(tvNumAff, "N°Affaire : ", info.numAff, labelBold = true, valueBold = true, R.color.labelfi,R.color.valuefi)
                         setLabelValueStyle(tvNumFI, "N°FI : ", info.numfi, labelBold = true, valueBold = true, R.color.labelfi,R.color.valuefi)
                         setLabelValueStyle(tvAppareil, "Appareil : ", info.appareil , true, false)
-                        setLabelValueStyle(tvClient, "", info.client , false, true, R.color.black, R.color.client)
+                        setLabelValueStyle(tvClient, "", info.client , false, true, R.color.black, R.color.blue)
                         setLabelValueStyle(tvMarque, "Marque : ", info.marque , true, false, R.color.black, R.color.black)
                         setLabelValueStyle(tvType, "Type : ", info.type , true, false, R.color.black, R.color.black)
                         setLabelValueStyle(tvSerie, "N°Série : ", info.serie , true, false, R.color.black, R.color.black)
@@ -314,6 +371,12 @@ class MainActivity : AppCompatActivity() {
                         setLabelValueStyle(tvNumFact, "N°Fact. : ", info.numfact , true, false, R.color.black, R.color.black)
                         setLabelValueStyle(tvDateFact, "", info.datefact , true, false, R.color.black, R.color.black)
                         setLabelValueStyle(tvPosit, "Position ", info.positaff , true, true, R.color.black, R.color.posit)
+
+                        tvClient.apply {
+                            paintFlags = paintFlags or Paint.UNDERLINE_TEXT_FLAG
+                            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.blue))
+                        }
+
                         tvDateFin.text = info.datefin
                         tvDateCF.text = info.datecf
                         chkCF.isChecked = (info.datecf != "")
@@ -538,6 +601,53 @@ class MainActivity : AppCompatActivity() {
     //endregion
 
     //region SQL
+    private fun getAffairesByClient(conn: Connection, clientId: Int?): List<ClientAffaire> {
+        val result = mutableListOf<ClientAffaire>()
+
+        try {
+            conn.prepareStatement(
+                """
+        SELECT 
+            A.AffID,
+            A.AffNoFI,
+            A.PositAff,
+            A.AffDesignation,
+            A.AffMarque,
+            A.AffType,
+            A.AffSerie,
+            A.AffNoClientInterne,
+            A.ExpdID,
+            A.ExpdDte
+        FROM tAffaire A
+        WHERE A.CltID = ?
+        ORDER BY A.AffID DESC
+        """.trimIndent()
+            ).use { ps ->
+                ps.setString(1, clientId.toString())
+                ps.executeQuery().use { rs ->
+                    while (rs.next()) {
+                        result.add(
+                            ClientAffaire(
+                                affId = rs.getString("AffID"),
+                                affNoFI = rs.getString("AffNoFI"),
+                                positAff = rs.getString("PositAff"),
+                                designation = rs.getString("AffDesignation"),
+                                marque = rs.getString("AffMarque"),
+                                type = rs.getString("AffType"),
+                                serie = rs.getString("AffSerie"),
+                                interne = rs.getString("AffNoClientInterne"),
+                                bl = rs.getString("ExpdID"),
+                                blDate = rs.getDate("ExpdDte")
+                            )
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("AFF_CLIENT", "Erreur dans getAffairesByClient : ${e.message}", e)
+        }
+        return result
+    }
     private fun findFiForCode(conn: java.sql.Connection, code: String): String? {
         // On choisit la requête SQL en fonction du format du code
         val sql = if (code.startsWith("OR-")) {
@@ -549,7 +659,7 @@ class MainActivity : AppCompatActivity() {
         """.trimIndent()
         } else {
             """
-        SELECT TOP 1 AffNoFI
+        SELECT AffNoFI
         FROM tAffaire
         WHERE AffID = ?
         """.trimIndent()
@@ -872,6 +982,21 @@ class MainActivity : AppCompatActivity() {
     //endregion
 
     //region Divers fonctions
+    private fun docTypeFolder(type: String): String {
+        val t = type.uppercase()
+
+        // Cas ST
+        if (t.endsWith("ST")) {
+            return "ST"
+        }
+
+        // Cas CECJ → CEC
+        if (t.startsWith("CEC")) {
+            return "CEC"
+        }
+
+        return t
+    }
     private fun findDocLocationForType(
         serverIp: String,
         shareName: String,
@@ -882,8 +1007,11 @@ class MainActivity : AppCompatActivity() {
     ): Pair<String, String> {
         val fiNoSlash = normalizeFi(fiValue)
         val yr = yearFromFi(fiValue)
+        val folder = docTypeFolder(docType)
+        val finalDocType = docType.uppercase()
         val zones = listOf("Validation", "Envoi", "Solde", "Archive")
-        val pattern = Regex("^${Regex.escape(fiNoSlash)}-${Regex.escape(docType)}(-\\d+)?\\.pdf$", RegexOption.IGNORE_CASE)
+        //val pattern = Regex("^${Regex.escape(fiNoSlash)}-${Regex.escape(docType)}(-\\d+)?\\.pdf$", RegexOption.IGNORE_CASE)
+        val pattern = Regex("^${Regex.escape(fiNoSlash)}-${Regex.escape(finalDocType)}(-\\d+)?\\.pdf$",RegexOption.IGNORE_CASE)
 
         Log.d("SMB", "---- findDocLocationForType ----")
         Log.d("SMB", "server=$serverIp share=$shareName user=$usernameWithDomain fi=$fiValue($fiNoSlash) doc=$docType year=$yr")
@@ -905,7 +1033,7 @@ class MainActivity : AppCompatActivity() {
                     smbListDir(disk, "Documents associes") // et non accentué
 
                     for (zone in zones) {
-                        val candidatesDirs = buildDocDirs(zone, docType, yr)
+                        val candidatesDirs = buildDocDirs(zone, folder, yr)
                         for (dirPath in candidatesDirs) {
                             val names = smbListDir(disk, dirPath)
                             if (names.isEmpty()) continue
@@ -967,14 +1095,17 @@ class MainActivity : AppCompatActivity() {
             bases.map { "$it/$zone/$docType/$year" }
         }
     }
-
     private fun normalizeDocType(type:String):String{
         val t = type.uppercase()
         return when {
             t.startsWith("CEC") -> "CEC"
+            t.contains("CV S/T") -> "CVST"
+            t.contains("CET S/T") -> "CETST"
             else -> t
         }
     }
+
+
     private fun normalizeFi(fi: String) = fi.replace("/", "").trim()
 
     private fun showDocLocationPopup(doc: String, numFi: String) {
@@ -993,6 +1124,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    fun safeGetInt(rs: ResultSet, column: String): Int? {
+        val value = rs.getInt(column)
+        return if (rs.wasNull()) null else value
+    }
     private fun extractIndex(fileName: String): Int {
         val m = Regex("-(\\d+)\\.pdf$", RegexOption.IGNORE_CASE).find(fileName)
         return m?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
@@ -1133,5 +1268,28 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
     private var currentAffairesDialog: AlertDialog? = null
+
+    private var clientAffairesDialog: AlertDialog? = null
+    private fun showClientAffairesDialog(affaires: List<ClientAffaire>) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_affaires_client, null)
+        val rv = dialogView.findViewById<RecyclerView>(R.id.rvAffairesClient)
+
+        rv.layoutManager = LinearLayoutManager(this)
+        rv.adapter = ClientAffairesAdapter(affaires) { affaire ->
+            // clic sur une affaire :
+            clientAffairesDialog?.dismiss()
+            // On recharge l'affaire comme d'habitude :
+            loadByAffaireCode(affaire.affId)
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Affaires du client")
+            .setView(dialogView)
+            .setNegativeButton("Fermer", null)
+            .create()
+
+        clientAffairesDialog = dialog
+        dialog.show()
+    }
     //endregion
 }

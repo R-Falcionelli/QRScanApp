@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:card_view="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    card_view:cardCornerRadius="8dp"
+    card_view:cardUseCompatPadding="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <!-- Ligne 1 : N°Affaire + N°FI -->
+        <TextView
+            android:id="@+id/tvAffaire"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="N°Affaire"
+            android:textStyle="bold"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/tvFI"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="N°FI"
+            android:textStyle="bold"
+            android:textSize="14sp" />
+
+        <!-- Ligne 2 : Désignation -->
+        <TextView
+            android:id="@+id/tvDesignation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Désignation"
+            android:paddingTop="4dp"
+            android:textSize="14sp" />
+
+        <!-- Ligne 3 : Marque / Type / N°Série -->
+        <TextView
+            android:id="@+id/tvMarqueType"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Marque / Type"
+            android:paddingTop="4dp"
+            android:textSize="13sp" />
+
+        <!-- Ligne 4 : N°Série / N°Interne -->
+        <TextView
+            android:id="@+id/tvSerieInterne"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="N°Série / N°Interne"
+            android:paddingTop="4dp"
+            android:textSize="13sp" />
+
+        <!-- Ligne 5 : BL + date -->
+        <TextView
+            android:id="@+id/tvBlDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="BL / Date"
+            android:paddingTop="4dp"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>

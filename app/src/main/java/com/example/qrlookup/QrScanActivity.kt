@@ -20,6 +20,7 @@ import java.util.concurrent.Executors
 
 class QrScanActivity : AppCompatActivity() {
 
+    private lateinit var reticleView: Reticleview
     private lateinit var previewView: PreviewView
     private var cameraExecutor: ExecutorService? = null
     private var cameraProvider: ProcessCameraProvider? = null
@@ -70,6 +71,7 @@ class QrScanActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_qr_scan)
 
+        reticleView = findViewById(R.id.reticleView)
         previewView = findViewById(R.id.previewView)
         cameraExecutor = Executors.newSingleThreadExecutor()
 
@@ -118,7 +120,14 @@ class QrScanActivity : AppCompatActivity() {
     private fun onQrScanned(value: String) {
         val data = Intent().apply { putExtra("SCANNED_CODE", value) }
         setResult(Activity.RESULT_OK, data)
-        finish()
+        reticleView.flash()
+
+        // Délai de 150ms pour visualiser le flash
+        reticleView.postDelayed({
+            val data = Intent().apply { putExtra("SCANNED_CODE", value) }
+            setResult(Activity.RESULT_OK, data)
+            finish()
+        }, 150)
     }
 
     override fun onDestroy() {

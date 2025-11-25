@@ -8,6 +8,12 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- Réticule au centre -->
+    <com.example.qrlookup.Reticleview
+        android:id="@+id/reticleView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
     <!-- Bandeau d’aide -->
     <TextView
         android:id="@+id/tvHint"
