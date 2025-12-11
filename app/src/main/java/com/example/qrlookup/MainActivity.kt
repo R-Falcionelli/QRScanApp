@@ -110,6 +110,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnSearch: Button
     private lateinit var btnScanFi: Button
     private var currentClientId: Int? = null
+    private val repo = FlashQrRepository()
+    private lateinit var tvLblEmp: TextView
+    private var currentFqrId: Int? = 0
+    private var currentTechAlias: String = ""
 
     // ✅ Nouveau launcher moderne pour récupérer le résultat du scan
     private val qrScanLauncher = registerForActivityResult(
@@ -213,6 +217,31 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // Emplacement
+        tvLblEmp.setOnClickListener {
+            val fqr = currentFqrId
+            if (fqr == null || fqr <= 0) {
+                showToast("FqrId non initialisé.")
+                return@setOnClickListener
+            }
+
+            lifecycleScope.launch {
+                try {
+                    val diag = repo.diagnostiquerParFqrId(currentFqrId)
+                    if (diag == null) {
+                        showToast("Aucune donnée trouvée pour cet appareil.")
+                        return@launch
+                    }
+
+                    showCorrectionDialog(diag)
+
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    showToast("Erreur lors du diagnostic.")
+                }
+            }
+        }
+
         // 🚀 Lancement du scanner
         btnScanFi.setOnClickListener {
             val intent = Intent(this, QrScanActivity::class.java)
@@ -240,7 +269,7 @@ class MainActivity : AppCompatActivity() {
                     val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
                     val conn = DriverManager.getConnection(url, "russe", "cia")
                     val stmt = conn.prepareStatement("""
-                        SELECT  trEtageres.EtgCode, tAffaire.AffID, tAffaire.AffNoFI, tAffaire.CltID as ClientId, 
+                        SELECT  tFlashQR.FqrId, trEtageres.EtgCode, tAffaire.AffID, tAffaire.AffNoFI, tAffaire.CltID as ClientId, 
                                 isnull(tClient.CltCodMichelin, '') + ' ' + isnull(tClient.CltNom, '') as Client,
                                 tAffaire.AffDesignation, 
                                 tAffaire.AffMarque, tAffaire.AffType, tAffaire.AffSerie, tAffaire.AffNoClientInterne,
@@ -296,6 +325,7 @@ class MainActivity : AppCompatActivity() {
                         found = true
                         info.etgCode = safeGetString(rs, "EtgCode")
                         currentClientId = safeGetInt(rs, "ClientId")
+                        currentFqrId = safeGetInt(rs, "FqrId")
                         fillFromResult(rs, info)
                         current_info = info
                         runOnUiThread {
@@ -331,26 +361,31 @@ class MainActivity : AppCompatActivity() {
 
                 runOnUiThread {
                     // Affichage dans le TextView
-                    tvResult.text = info.etgCode
+                    //tvResult.text = info.etgCode
+                    tvLblEmp.text = info.etgCode
 
                     // Changement dynamique de la couleur selon le résultat
                     if (found){
                         if (info.etgCode == "A00") {
-                            tvResult.setBackgroundColor(Color.RED)
-                            tvResult.setTextColor(Color.WHITE)
+//                            tvResult.setBackgroundColor(Color.RED)
+//                            tvResult.setTextColor(Color.WHITE)
+                            tvLblEmp.setBackgroundColor(Color.RED)
+                            tvLblEmp.setTextColor(Color.WHITE)
                             tvLblEmp.isVisible = true
-                            tvResult.isVisible = true
+                            //tvResult.isVisible = true
                             Toast.makeText(this, "Appareil non rangé sur étagère ou expédié", Toast.LENGTH_LONG).show()
                         } else {
                             if (info.etgCode=="")
                             {
                                 tvLblEmp.isVisible = false
-                                tvResult.isVisible = false
+                                //tvResult.isVisible = false
                             } else {
-                                tvResult.setBackgroundColor(Color.parseColor("#006400")) // vert foncé
-                                tvResult.setTextColor(Color.WHITE)
+//                                tvResult.setBackgroundColor(Color.parseColor("#006400")) // vert foncé
+//                                tvResult.setTextColor(Color.WHITE)
+                                tvLblEmp.setBackgroundColor(Color.parseColor("#006400")) // vert foncé
+                                tvLblEmp.setTextColor(Color.WHITE)
                                 tvLblEmp.isVisible = true
-                                tvResult.isVisible = true
+                                //tvResult.isVisible = true
                             }
                         }
 
@@ -550,9 +585,11 @@ class MainActivity : AppCompatActivity() {
                     return@runOnUiThread
                 }
 
+                var dirdoc = ""
+                if(docType.contains("ST")) { dirdoc = "ST" } else { dirdoc = docType}
                 val base = "Documents associes/Documents finaux"
                 val yr = yearFromFi(fi)
-                val dir = if (zone == "Validation" || zone == "Envoi") "$base/$zone/$docType" else "$base/$zone/$docType/$yr"
+                val dir = if (zone == "Validation" || zone == "Envoi") "$base/$zone/$dirdoc" else "$base/$zone/$dirdoc/$yr"
 
                 AlertDialog.Builder(this)
                     .setTitle("Document $docType")
@@ -652,10 +689,10 @@ class MainActivity : AppCompatActivity() {
         // On choisit la requête SQL en fonction du format du code
         val sql = if (code.startsWith("OR-")) {
             """
-        SELECT A.AffNoFI
+        SELECT top 1 A.AffNoFI
         FROM tFlashQr F
         INNER JOIN tAffaire A on A.AffID = F.AffID
-        WHERE F.QrId = ?
+        WHERE F.QrId = ? order by FrqId desc
         """.trimIndent()
         } else {
             """
@@ -1086,13 +1123,16 @@ class MainActivity : AppCompatActivity() {
         val assocNo  = "Documents associes"
         val baseAcc  = "$assocAcc/Documents finaux"
         val baseNo   = "$assocNo/Documents finaux"
+        var dirdoc   = ""
 
         val bases = listOf(baseAcc, baseNo)
 
+        if (docType.contains("ST")){dirdoc = "ST"} else {dirdoc = docType}
+
         return if (zone == "Validation" || zone == "Envoi")  {
-            bases.map { "$it/$zone/$docType" }
+            bases.map { "$it/$zone/$dirdoc" }
         } else {
-            bases.map { "$it/$zone/$docType/$year" }
+            bases.map { "$it/$zone/$dirdoc/$year" }
         }
     }
     private fun normalizeDocType(type:String):String{
@@ -1291,5 +1331,96 @@ class MainActivity : AppCompatActivity() {
         clientAffairesDialog = dialog
         dialog.show()
     }
+
+    private fun showToast(msg: String) =
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+
+    // 🔹 ICI : showCorrectionDialog DANS LA MÊME ACTIVITY
+    private fun showCorrectionDialog(diag: FlashQrDiagnostic) {
+        val context = this
+
+        val labels = mutableListOf<String>()
+        val checked = mutableListOf<Boolean>()
+
+        val idxTech: Int? =
+            if (diag.anomalieTech) {
+                labels += "Marquer l'intervention comme terminée (AffDateFin)"
+                checked += true
+                labels.lastIndex
+            } else null
+
+        val idxLivr: Int? =
+            if (diag.anomalieLivraison) {
+                labels += "Marquer comme livré (date BL ou maintenant)"
+                checked += true
+                labels.lastIndex
+            } else null
+
+        labels += "Corriger l'emplacement (scanner une nouvelle étagère)"
+        checked += false
+        val idxEtg = labels.lastIndex
+
+        var newEtgId: Int? = null
+        var aliasTechEntre: String? = null
+
+        // -- CHAMP DE SAISIE ALIAS TECH --
+        val inputAlias = EditText(context).apply {
+            hint = "Alias technicien (optionnel)"
+            setPadding(50, 40, 50, 40)
+        }
+
+        val layout = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(inputAlias)
+        }
+
+        AlertDialog.Builder(context)
+            .setTitle("Corrections pour ${diag.qrId}")
+            .setView(layout)
+            .setMultiChoiceItems(labels.toTypedArray(), checked.toBooleanArray()) { _, which, isChecked ->
+                checked[which] = isChecked
+
+                if (which == idxEtg && isChecked) {
+                    lancerScanEmplacement { etgId ->
+                        newEtgId = etgId
+                        showToast("Nouvel emplacement : $etgId")
+                    }
+                }
+            }
+            .setPositiveButton("Valider") { _, _ ->
+
+                aliasTechEntre = inputAlias.text.toString().trim().ifBlank { null }
+
+                val options = CorrectionOptions(
+                    fqrId = diag.fqrId,
+                    corrigerEmplacement = checked[idxEtg],
+                    nouvelEtgId = newEtgId,
+                    corrigerTech = idxTech?.let { checked[it] } ?: false,
+                    corrigerLivraison = idxLivr?.let { checked[it] } ?: false,
+                    techAlias = aliasTechEntre       // ← ICI !
+                )
+
+                lifecycleScope.launch {
+                    try {
+                        repo.appliquerCorrections(options, diag)
+                        showToast("Corrections appliquées.")
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        showToast("Erreur lors des corrections.")
+                    }
+                }
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
+    }
+
+    private fun lancerScanEmplacement(onResult: (Int) -> Unit) {
+        // branchement avec ton scanner QR existant pour les étagères
+        // startQrScanForEtageres { qr ->
+        //     val etgId = qr.toIntOrNull()
+        //     if (etgId != null) onResult(etgId) else showToast("QR d'étagère invalide.")
+        // }
+    }
+
     //endregion
 }

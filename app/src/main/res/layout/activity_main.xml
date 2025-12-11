@@ -368,13 +368,24 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
+<!--                <Button-->
+<!--                    android:id="@+id/btnEmplacement"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:text="Emplacement"-->
+<!--                    android:padding="12dp"-->
+<!--                    android:backgroundTint="@color/BtnEmp"-->
+<!--                    android:textColor="@android:color/white"/>-->
+
             <TextView
                 android:id="@+id/tvLblEmp"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:text="Emplacement"
-                android:textStyle="bold" />
+                android:text="A12"
+                android:padding="12dp"
+                android:visibility="gone"
+                android:background="@drawable/bg_button_like"
+                android:textColor="@android:color/white"/>
 
             <TextView
                 android:id="@+id/tvResult"
