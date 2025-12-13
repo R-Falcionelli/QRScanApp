@@ -1,4 +1,5 @@
 package com.example.qrlookup
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.database.SQLException
@@ -54,6 +55,7 @@ import java.sql.Connection
 import java.util.EnumSet
 import androidx.recyclerview.widget.RecyclerView
 import java.sql.Date
+import android.widget.Space
 
 class MainActivity : AppCompatActivity() {
     data class AffaireInfo(
@@ -1336,82 +1338,213 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 
     // 🔹 ICI : showCorrectionDialog DANS LA MÊME ACTIVITY
+    @SuppressLint("SuspiciousIndentation")
     private fun showCorrectionDialog(diag: FlashQrDiagnostic) {
-        val context = this
+        val ctx = this
 
-        val labels = mutableListOf<String>()
-        val checked = mutableListOf<Boolean>()
-
-        val idxTech: Int? =
-            if (diag.anomalieTech) {
-                labels += "Marquer l'intervention comme terminée (AffDateFin)"
-                checked += true
-                labels.lastIndex
-            } else null
-
-        val idxLivr: Int? =
-            if (diag.anomalieLivraison) {
-                labels += "Marquer comme livré (date BL ou maintenant)"
-                checked += true
-                labels.lastIndex
-            } else null
-
-        labels += "Corriger l'emplacement (scanner une nouvelle étagère)"
-        checked += false
-        val idxEtg = labels.lastIndex
-
-        var newEtgId: Int? = null
-        var aliasTechEntre: String? = null
-
-        // -- CHAMP DE SAISIE ALIAS TECH --
-        val inputAlias = EditText(context).apply {
-            hint = "Alias technicien (optionnel)"
-            setPadding(50, 40, 50, 40)
+        // --- UI ---
+        val chkUpdateTechDate = CheckBox(ctx).apply {
+            text = "Mettre à jour la date TECH (QfaPECTech) avec AffDateFin"
+            isEnabled = (diag.affDateFin != null)
+            isChecked = (diag.affDateFin != null && diag.qfaPECTech == null)
         }
 
-        val layout = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(inputAlias)
+        val chkUpdateLivrDate = CheckBox(ctx).apply {
+            text = "Mettre à jour la date LIVRAISON (QfaPECLivr) avec ExpdDte"
+            isEnabled = (diag.expdDte != null)
+            isChecked = (diag.expdDte != null && diag.qfaPECLivr == null)
         }
 
-        AlertDialog.Builder(context)
-            .setTitle("Corrections pour ${diag.qrId}")
-            .setView(layout)
-            .setMultiChoiceItems(labels.toTypedArray(), checked.toBooleanArray()) { _, which, isChecked ->
-                checked[which] = isChecked
+        val chkDeleteLivrDate = CheckBox(ctx).apply {
+            text = "Suppression prise en charge livraison"
+            isChecked = false
+            chkUpdateLivrDate.isChecked = false
+        }
 
-                if (which == idxEtg && isChecked) {
-                    lancerScanEmplacement { etgId ->
-                        newEtgId = etgId
-                        showToast("Nouvel emplacement : $etgId")
-                    }
-                }
+        val chkEditTechAlias = CheckBox(ctx).apply {
+            text = "Modifier l'alias technicien (QfaPECPar)"
+            isChecked = false
+        }
+
+        val chkDeleteTechAlias = CheckBox(ctx).apply {
+            text = "Supprimer l'alias technicien (mettre QfaPECPar = NULL)"
+            isChecked = false
+        }
+
+        val chkDeleteTechDate = CheckBox(ctx).apply {
+            text = "Supprimer la date de prise en charge technicien"
+            isChecked = false
+        }
+
+        val inputTechAlias = EditText(ctx).apply {
+            hint = "Alias technicien (EmpInit)"
+            setSingleLine(true)
+            isEnabled = false
+        }
+
+        // Optionnel : emplacement (saisie manuelle)
+        val chkUpdateEtg = CheckBox(ctx).apply {
+            text = "Corriger l'emplacement (EtgCode)"
+            isChecked = false
+        }
+
+        val inputEtgCode = EditText(ctx).apply {
+            hint = "Code étagère (EtgCode)"
+            setSingleLine(true)
+            isEnabled = false
+        }
+
+        // --- logique UI : modifier/supprimer alias sont exclusifs ---
+        chkEditTechAlias.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) chkDeleteTechAlias.isChecked = false
+            inputTechAlias.isEnabled = isChecked
+            if (!isChecked) inputTechAlias.text = null
+        }
+
+        chkDeleteTechAlias.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) chkEditTechAlias.isChecked = false
+            if (isChecked) {
+                inputTechAlias.isEnabled = false
+                inputTechAlias.text = null
             }
-            .setPositiveButton("Valider") { _, _ ->
+        }
 
-                aliasTechEntre = inputAlias.text.toString().trim().ifBlank { null }
+        chkDeleteTechDate.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) chkEditTechAlias.isChecked = false
+            if (isChecked) {
+                chkDeleteTechAlias.isChecked = true
+                inputTechAlias.isEnabled = false
+                inputTechAlias.text = null
+            }
+        }
 
-                val options = CorrectionOptions(
-                    fqrId = diag.fqrId,
-                    corrigerEmplacement = checked[idxEtg],
-                    nouvelEtgId = newEtgId,
-                    corrigerTech = idxTech?.let { checked[it] } ?: false,
-                    corrigerLivraison = idxLivr?.let { checked[it] } ?: false,
-                    techAlias = aliasTechEntre       // ← ICI !
-                )
+        chkDeleteLivrDate.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                chkDeleteTechAlias.isChecked = true
+                inputTechAlias.isEnabled = false
+                inputTechAlias.text = null
+            }
+        }
 
+        chkUpdateEtg.setOnCheckedChangeListener { _, isChecked ->
+            inputEtgCode.isEnabled = isChecked
+            if (!isChecked) inputEtgCode.text = null
+        }
+
+        // --- Layout ---
+        val layout = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(50, 30, 50, 10)
+
+            addView(TextView(ctx).apply { text = "TECH"; textSize = 16f })
+            addView(chkUpdateTechDate)
+            addView(chkEditTechAlias)
+            addView(inputTechAlias)
+            addView(chkDeleteTechAlias)
+            addView(chkDeleteTechDate)
+
+            addView(Space(ctx).apply { minimumHeight = 18 })
+
+            addView(TextView(ctx).apply { text = "LIVRAISON"; textSize = 16f })
+            addView(chkUpdateLivrDate)
+            addView(chkDeleteLivrDate)
+
+            addView(Space(ctx).apply { minimumHeight = 18 })
+
+            addView(TextView(ctx).apply { text = "EMPLACEMENT"; textSize = 16f })
+            addView(chkUpdateEtg)
+            addView(inputEtgCode)
+        }
+
+        // --- Dialog ---
+        val dialog = AlertDialog.Builder(ctx)
+            .setTitle("Corrections - ${diag.qrId}")
+            .setView(layout)
+            .setNegativeButton("Annuler", null)
+            .setPositiveButton("Valider", null) // on override après pour empêcher fermeture si erreur
+            .create()
+
+            dialog.setOnShowListener {
+                val btn = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                btn.setOnClickListener {
+
+                val alias = inputTechAlias.text?.toString()?.trim()?.ifBlank { null }
+                val etgCode = inputEtgCode.text?.toString()?.trim()?.ifBlank { null }
+
+                // validations côté UI
+                if (chkEditTechAlias.isChecked && alias == null) {
+                    showToast("Saisis un alias technicien.")
+                    return@setOnClickListener
+                }
+
+                if (chkEditTechAlias.isChecked && chkDeleteTechAlias.isChecked) {
+                    showToast("Choisis soit modifier, soit supprimer l'alias (pas les deux).")
+                    return@setOnClickListener
+                }
+
+                if (chkUpdateEtg.isChecked && etgCode == null) {
+                    showToast("Saisis un code étagère.")
+                    return@setOnClickListener
+                }
+
+                // coroutines: vérifs SQL + apply
                 lifecycleScope.launch {
                     try {
+                        // Vérif alias tech si modification
+                        if (chkEditTechAlias.isChecked && alias != null) {
+                            val okTech = repo.checkTechExists(alias) // tEmployee.EmpInit
+                            if (!okTech) {
+                                showToast("Alias technicien inconnu (tEmployee.EmpInit).")
+                                return@launch
+                            }
+                        }
+
+                        // Vérif étagère si saisie
+                        var etgid: Int? = null
+                        if (chkUpdateEtg.isChecked && etgCode != null) {
+                            etgid = repo.checkEtageresExists(etgCode) // trEtageres.EtgCode
+                            if (etgid == null) {
+                                showToast("Code étagère inconnu (trEtageres.EtgCode).")
+                                return@launch
+                            }
+                        }
+
+                        val options = CorrectionOptions(
+                            fqrId = diag.fqrId,
+
+                            updateTechAlias = chkEditTechAlias.isChecked,
+                            deleteTechAlias = chkDeleteTechAlias.isChecked,
+                            deleteTechDate = chkDeleteTechDate.isChecked,
+                            deleteLivrDate = chkDeleteLivrDate.isChecked,
+                            techAlias = alias,
+
+                            updateTechDateFromAffDateFin = chkUpdateTechDate.isChecked,
+                            updateLivrDateFromExpdDte = chkUpdateLivrDate.isChecked,
+
+                            updateEmplacement = chkUpdateEtg.isChecked,
+                            etgCode = etgCode,
+                            etgId = etgid
+                        )
+
+                        // Appel de la fonction d'update
                         repo.appliquerCorrections(options, diag)
+
                         showToast("Corrections appliquées.")
+                        dialog.dismiss()
+
+                        val fi = current_info?.numfi
+                        etSearch.setText(fi)
+                        btnSearch.performClick()
+
                     } catch (e: Exception) {
                         e.printStackTrace()
                         showToast("Erreur lors des corrections.")
                     }
                 }
             }
-            .setNegativeButton("Annuler", null)
-            .show()
+        }
+
+        dialog.show()
     }
 
     private fun lancerScanEmplacement(onResult: (Int) -> Unit) {

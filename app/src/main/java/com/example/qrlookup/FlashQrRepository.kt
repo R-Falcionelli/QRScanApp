@@ -26,18 +26,62 @@ data class FlashQrDiagnostic(
 
 data class CorrectionOptions(
     val fqrId: Int,
-    val corrigerEmplacement: Boolean,
-    val nouvelEtgId: Int?,             // null si pas de nouveau rangement
-    val corrigerTech: Boolean,
-    val corrigerLivraison: Boolean,
-    val techAlias: String? = null      // si tu veux recaler QfaPECPar aussi
+
+    val updateTechAlias: Boolean,
+    val deleteTechAlias: Boolean,
+    val techAlias: String?,
+
+    val updateTechDateFromAffDateFin: Boolean,
+    val updateLivrDateFromExpdDte: Boolean,
+    val deleteTechDate: Boolean,
+    val deleteLivrDate: Boolean,
+
+    val updateEmplacement: Boolean,
+    val etgCode: String?,
+    val etgId: Int?
 )
 class FlashQrRepository {
-    // À adapter avec ton URL / user / pwd ou ton helper existant
-    private fun getSqlConnection(): Connection {
-        // return MySqlHelper.getConnection()
-        return DriverManager.getConnection("jdbc:sqlserver://10.135.214.34:1433;databaseName=SIA;user=russe;password=cia")
-    }
+    // À adapter avec URL / user / pwd ou ton helper existant
+    suspend fun checkTechExists(alias: String): Boolean =
+        withContext(Dispatchers.IO) {
+            Class.forName("net.sourceforge.jtds.jdbc.Driver")
+            val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+
+            DriverManager.getConnection(url, "russe", "cia").use { conn ->
+                val sql = """SELECT 1 from tEmployee where EmpInit = ?""".trimIndent()
+
+                conn.prepareStatement(sql).use { stmt ->
+
+                    // 🔹 ICI : remplacement du ? par la valeur du paramètre
+                    stmt.setString(1, alias)
+
+                    val rs = stmt.executeQuery()
+                    rs.next()
+
+                    rs.getInt(1) > 0
+                }
+            }
+        }
+
+    suspend fun checkEtageresExists(etgCode: String): Int? =
+        withContext(Dispatchers.IO) {
+            Class.forName("net.sourceforge.jtds.jdbc.Driver")
+            val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+
+            DriverManager.getConnection(url, "russe", "cia").use { conn ->
+                val sql = """SELECT EtgId from trEtageres where EtgCode = ?""".trimIndent()
+
+                conn.prepareStatement(sql).use { stmt ->
+
+                    // 🔹 ICI : remplacement du ? par la valeur du paramètre
+                    stmt.setString(1, etgCode)
+
+                    val rs = stmt.executeQuery()
+                    if (rs.next()) {rs.getInt(1)} else { null }
+                }
+            }
+        }
+
     suspend fun diagnostiquerParFqrId(fqrId: Int?): FlashQrDiagnostic? =
         withContext(Dispatchers.IO) {
             //val conn = getSqlConnection()
@@ -45,7 +89,6 @@ class FlashQrRepository {
             val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
 
             DriverManager.getConnection(url, "russe", "cia").use { conn ->
-                conn.use { c ->
                     val sql = """
                     SELECT 
                         f.FqrId, f.QrId, f.EtgId,
@@ -61,7 +104,7 @@ class FlashQrRepository {
                     val fqr = fqrId
                     if (fqr == null || fqr <= 0) return@withContext null
 
-                    c.prepareStatement(sql).use { stmt ->
+                    conn.prepareStatement(sql).use { stmt ->
                         stmt.setInt(1, fqrId)
                         val rs = stmt.executeQuery()
                         if (!rs.next()) return@withContext null
@@ -90,35 +133,36 @@ class FlashQrRepository {
                             anomalieLivraison = anomalieLivraison
                         )
                     }
-                }
             }
         }
 
     suspend fun appliquerCorrections(options: CorrectionOptions, diag: FlashQrDiagnostic) =
         withContext(Dispatchers.IO) {
-            val conn = getSqlConnection()
-            conn.use { c ->
-                c.autoCommit = false
+            Class.forName("net.sourceforge.jtds.jdbc.Driver")
+            val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+
+            DriverManager.getConnection(url, "russe", "cia").use { conn ->
+                conn.autoCommit = false
                 try {
                     // 1) Correction emplacement
-                    if (options.corrigerEmplacement && options.nouvelEtgId != null) {
+                    if (options.updateEmplacement && options.etgId != null) {
                         val sql = "UPDATE tFlashQR SET EtgId = ? WHERE FqrId = ?"
-                        c.prepareStatement(sql).use { stmt ->
-                            stmt.setInt(1, options.nouvelEtgId)
+                        conn.prepareStatement(sql).use { stmt ->
+                            stmt.setInt(1, options.etgId)
                             stmt.setInt(2, options.fqrId)
                             stmt.executeUpdate()
                         }
                     }
 
                     // 2) Correction TECH (intervention terminée)
-                    if (options.corrigerTech && diag.affDateFin != null) {
+                    if (options.updateTechDateFromAffDateFin && diag.affDateFin != null) {
                         val sql = """
                             UPDATE tFlashQR
                             SET QfaPECTech = ?, 
-                                QfaPECPar  = ISNULL(QfaPECPar, ?) 
+                                QfaPECPar = ? 
                             WHERE FqrId = ?
                         """.trimIndent()
-                        c.prepareStatement(sql).use { stmt ->
+                        conn.prepareStatement(sql).use { stmt ->
                             stmt.setTimestamp(1, Timestamp(diag.affDateFin.time))
                             stmt.setString(2, options.techAlias ?: "")
                             stmt.setInt(3, options.fqrId)
@@ -127,7 +171,7 @@ class FlashQrRepository {
                     }
 
                     // 3) Correction LIVRAISON
-                    if (options.corrigerLivraison) {
+                    if (options.updateLivrDateFromExpdDte) {
                         if (diag.expdDte != null) {
                             val sql = """
                                 UPDATE tFlashQR
@@ -136,7 +180,7 @@ class FlashQrRepository {
                                     EtgId = 0
                                 WHERE FqrId = ?
                             """.trimIndent()
-                            c.prepareStatement(sql).use { stmt ->
+                            conn.prepareStatement(sql).use { stmt ->
                                 stmt.setTimestamp(1, Timestamp(diag.expdDte.time))
                                 stmt.setInt(2, options.fqrId)
                                 stmt.executeUpdate()
@@ -149,19 +193,58 @@ class FlashQrRepository {
                                     EtgId = 0
                                 WHERE FqrId = ?
                             """.trimIndent()
-                            c.prepareStatement(sql).use { stmt ->
+                            conn.prepareStatement(sql).use { stmt ->
                                 stmt.setInt(1, options.fqrId)
                                 stmt.executeUpdate()
                             }
                         }
                     }
 
-                    c.commit()
+                    // 4) Correction TECH (suppression du tech)
+                    if (options.deleteTechAlias) {
+                        val sql = """
+                            UPDATE tFlashQR
+                            SET QfaPECPar = '' 
+                            WHERE FqrId = ?
+                        """.trimIndent()
+                        conn.prepareStatement(sql).use { stmt ->
+                            stmt.setInt(1, options.fqrId)
+                            stmt.executeUpdate()
+                        }
+                    }
+
+                    // 5) Suppression date de prise en charge technicien
+                    if (options.deleteTechDate) {
+                        val sql = """
+                            UPDATE tFlashQR
+                            SET QfaPECPar = '', QfaPECtech = null 
+                            WHERE FqrId = ?
+                        """.trimIndent()
+                        conn.prepareStatement(sql).use { stmt ->
+                            stmt.setInt(1, options.fqrId)
+                            stmt.executeUpdate()
+                        }
+                    }
+
+                    // 6) Suppression date de prise en livraison
+                    if (options.deleteLivrDate) {
+                        val sql = """
+                            UPDATE tFlashQR
+                            SET QfaPECLivr = null 
+                            WHERE FqrId = ?
+                        """.trimIndent()
+                        conn.prepareStatement(sql).use { stmt ->
+                            stmt.setInt(1, options.fqrId)
+                            stmt.executeUpdate()
+                        }
+                    }
+
+                    conn.commit()
                 } catch (ex: Exception) {
-                    c.rollback()
+                    conn.rollback()
                     throw ex
                 } finally {
-                    c.autoCommit = true
+                    conn.autoCommit = true
                 }
             }
         }
