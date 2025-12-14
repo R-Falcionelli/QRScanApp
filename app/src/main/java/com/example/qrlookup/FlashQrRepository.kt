@@ -162,7 +162,8 @@ class FlashQrRepository {
                         val sql = """
                             UPDATE tFlashQR
                             SET QfaPECTech = ?, 
-                                QfaPECPar = ? 
+                                QfaPECPar = ?,
+                                EtgId=0EtgID
                             WHERE FqrId = ?
                         """.trimIndent()
                         conn.prepareStatement(sql).use { stmt ->
