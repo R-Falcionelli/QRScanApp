@@ -1,6 +1,7 @@
 package com.example.qrlookup
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.DatePickerDialog
 import android.content.Context
 import android.database.SQLException
 import android.graphics.Color
@@ -54,8 +55,12 @@ import org.w3c.dom.Text
 import java.sql.Connection
 import java.util.EnumSet
 import androidx.recyclerview.widget.RecyclerView
-import java.sql.Date
+//import java.sql.Date
+import java.util.Date
 import android.widget.Space
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
     data class AffaireInfo(
@@ -1341,18 +1346,30 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SuspiciousIndentation")
     private fun showCorrectionDialog(diag: FlashQrDiagnostic) {
         val ctx = this
+        var selectedTechDate: Date? = null
+        var selectedLivrDate: Date? = null
 
         // --- UI ---
         val chkUpdateTechDate = CheckBox(ctx).apply {
-            text = "Mettre à jour la date TECH (QfaPECTech) avec AffDateFin"
-            isEnabled = (diag.affDateFin != null)
-            isChecked = (diag.affDateFin != null && diag.qfaPECTech == null)
+            text = "Modifier la date de prise en charge Technicien"
+//            isEnabled = (diag.affDateFin != null)
+//            isChecked = (diag.affDateFin != null && diag.qfaPECTech == null)
+        }
+
+        val tvTechDate = TextView(ctx).apply {
+            text = "Prise en charge technitien"
+            visibility = View.GONE
         }
 
         val chkUpdateLivrDate = CheckBox(ctx).apply {
-            text = "Mettre à jour la date LIVRAISON (QfaPECLivr) avec ExpdDte"
-            isEnabled = (diag.expdDte != null)
-            isChecked = (diag.expdDte != null && diag.qfaPECLivr == null)
+            text = "Modifer la date de prise en charge Livraison"
+//            isEnabled = (diag.expdDte != null)
+//            isChecked = (diag.expdDte != null && diag.qfaPECLivr == null)
+        }
+
+        val tvLivrDate = TextView(ctx).apply {
+            text = "Prise en charge livraison"
+            visibility = View.GONE
         }
 
         val chkDeleteLivrDate = CheckBox(ctx).apply {
@@ -1431,6 +1448,44 @@ class MainActivity : AppCompatActivity() {
             if (!isChecked) inputEtgCode.text = null
         }
 
+        chkUpdateTechDate.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                showDatePicker(
+                    ctx = ctx,
+                    defaultDate = diag.affDateFin, // 👉 clé de ton besoin
+                ) { date ->
+                    selectedTechDate = date
+                    tvTechDate.text = SimpleDateFormat(
+                        "dd/MM/yyyy",
+                        Locale.FRANCE
+                    ).format(date)
+                    tvTechDate.visibility = View.VISIBLE
+                }
+            } else {
+                selectedTechDate = null
+                tvTechDate.visibility = View.GONE
+            }
+        }
+
+        chkUpdateLivrDate.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                showDatePicker(
+                    ctx = ctx,
+                    defaultDate = diag.expdDte, // 👉 clé de ton besoin
+                ) { date ->
+                    selectedLivrDate = date
+                    tvLivrDate.text = SimpleDateFormat(
+                        "dd/MM/yyyy",
+                        Locale.FRANCE
+                    ).format(date)
+                    tvLivrDate.visibility = View.VISIBLE
+                }
+            } else {
+                selectedLivrDate = null
+                tvLivrDate.visibility = View.GONE
+            }
+        }
+
         // --- Layout ---
         val layout = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -1438,6 +1493,7 @@ class MainActivity : AppCompatActivity() {
 
             addView(TextView(ctx).apply { text = "Technicien"; textSize = 16f; setTypeface(typeface, Typeface.BOLD); setTextColor(Color.BLUE) })
             addView(chkUpdateTechDate)
+            addView(tvTechDate)
             addView(chkDeleteTechAlias)
             addView(chkDeleteTechDate)
             addView(chkEditTechAlias)
@@ -1447,6 +1503,7 @@ class MainActivity : AppCompatActivity() {
 
             addView(TextView(ctx).apply { text = "Livraison"; textSize = 16f; setTypeface(typeface, Typeface.BOLD); setTextColor(Color.BLUE) })
             addView(chkUpdateLivrDate)
+            addView(tvLivrDate)
             addView(chkDeleteLivrDate)
 
             addView(Space(ctx).apply { minimumHeight = 18 })
@@ -1514,8 +1571,11 @@ class MainActivity : AppCompatActivity() {
 
                             updateTechAlias = chkEditTechAlias.isChecked,
                             deleteTechAlias = chkDeleteTechAlias.isChecked,
+                            updateTechDate = chkUpdateTechDate.isChecked,
+                            techDate = selectedTechDate,
                             deleteTechDate = chkDeleteTechDate.isChecked,
                             deleteLivrDate = chkDeleteLivrDate.isChecked,
+                            livrDate = selectedLivrDate,
                             techAlias = alias,
 
                             updateTechDateFromAffDateFin = chkUpdateTechDate.isChecked,
@@ -1543,6 +1603,41 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        dialog.show()
+    }
+
+    private fun showDatePicker(
+        ctx: Context,
+        defaultDate: Date?,
+        onDateSelected: (Date) -> Unit
+    ) {
+        val cal = Calendar.getInstance()
+
+        // 👉 date par défaut : AffDateFin sinon aujourd’hui
+        cal.time = defaultDate ?: Date()
+
+        val dialog = DatePickerDialog(
+            ctx,
+            { _, year, month, dayOfMonth ->
+                val selectedCal = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, year)
+                    set(Calendar.MONTH, month)
+                    set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                onDateSelected(selectedCal.time)
+            },
+            cal.get(Calendar.YEAR),
+            cal.get(Calendar.MONTH),
+            cal.get(Calendar.DAY_OF_MONTH)
+        )
+
+        // optionnel mais recommandé : pas de date future
+        dialog.datePicker.maxDate = System.currentTimeMillis()
 
         dialog.show()
     }

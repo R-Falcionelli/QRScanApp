@@ -30,9 +30,11 @@ data class CorrectionOptions(
     val updateTechAlias: Boolean,
     val deleteTechAlias: Boolean,
     val techAlias: String?,
-
+    val updateTechDate: Boolean,
+    val techDate: java.util.Date? = null,
     val updateTechDateFromAffDateFin: Boolean,
     val updateLivrDateFromExpdDte: Boolean,
+    val livrDate: java.util.Date? = null,
     val deleteTechDate: Boolean,
     val deleteLivrDate: Boolean,
 
@@ -155,7 +157,8 @@ class FlashQrRepository {
                     }
 
                     // 2) Correction TECH (intervention terminée)
-                    if (options.updateTechDateFromAffDateFin && diag.affDateFin != null) {
+                    val dt = options.techDate
+                    if (options.updateTechDate && dt != null) {
                         val sql = """
                             UPDATE tFlashQR
                             SET QfaPECTech = ?, 
@@ -163,7 +166,7 @@ class FlashQrRepository {
                             WHERE FqrId = ?
                         """.trimIndent()
                         conn.prepareStatement(sql).use { stmt ->
-                            stmt.setTimestamp(1, Timestamp(diag.affDateFin.time))
+                            stmt.setTimestamp(1, Timestamp(dt.time))
                             stmt.setString(2, options.techAlias ?: "")
                             stmt.setInt(3, options.fqrId)
                             stmt.executeUpdate()
@@ -171,32 +174,19 @@ class FlashQrRepository {
                     }
 
                     // 3) Correction LIVRAISON
-                    if (options.updateLivrDateFromExpdDte) {
-                        if (diag.expdDte != null) {
-                            val sql = """
-                                UPDATE tFlashQR
-                                SET QfaPECLivr = ?, 
-                                    QfaPECPar = '',
-                                    EtgId = 0
-                                WHERE FqrId = ?
-                            """.trimIndent()
-                            conn.prepareStatement(sql).use { stmt ->
-                                stmt.setTimestamp(1, Timestamp(diag.expdDte.time))
-                                stmt.setInt(2, options.fqrId)
-                                stmt.executeUpdate()
-                            }
-                        } else {
-                            val sql = """
-                                UPDATE tFlashQR
-                                SET QfaPECLivr = GETDATE(),
-                                    QfaPECPar = '',
-                                    EtgId = 0
-                                WHERE FqrId = ?
-                            """.trimIndent()
-                            conn.prepareStatement(sql).use { stmt ->
-                                stmt.setInt(1, options.fqrId)
-                                stmt.executeUpdate()
-                            }
+                    val dl = options.livrDate
+                    if (options.updateLivrDateFromExpdDte && dl != null) {
+                        val sql = """
+                            UPDATE tFlashQR
+                            SET QfaPECLivr = ?, 
+                                QfaPECPar = '',
+                                EtgId = 0
+                            WHERE FqrId = ?
+                        """.trimIndent()
+                        conn.prepareStatement(sql).use { stmt ->
+                            stmt.setTimestamp(1, Timestamp(dl.time))
+                            stmt.setInt(2, options.fqrId)
+                            stmt.executeUpdate()
                         }
                     }
 
