@@ -375,7 +375,7 @@ class MainActivity : AppCompatActivity() {
                             tvLblEmp.setTextColor(Color.WHITE)
                             tvLblEmp.isVisible = true
                             //tvResult.isVisible = true
-                            Toast.makeText(this, "Appareil non rangé sur étagère ou expédié", Toast.LENGTH_LONG).show()
+                            //Toast.makeText(this, "Appareil non rangé sur étagère ou expédié", Toast.LENGTH_LONG).show()
                         } else {
                             if (info.etgCode=="")
                             {
@@ -1377,14 +1377,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         val inputTechAlias = EditText(ctx).apply {
-            hint = "Alias technicien (EmpInit)"
+            hint = "Alias technicien"
             setSingleLine(true)
             isEnabled = false
         }
 
         // Optionnel : emplacement (saisie manuelle)
         val chkUpdateEtg = CheckBox(ctx).apply {
-            text = "Corriger l'emplacement (EtgCode)"
+            text = "Corriger l'emplacement"
             isChecked = false
         }
 
@@ -1436,22 +1436,22 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(50, 30, 50, 10)
 
-            addView(TextView(ctx).apply { text = "TECH"; textSize = 16f })
+            addView(TextView(ctx).apply { text = "Technicien"; textSize = 16f; setTypeface(typeface, Typeface.BOLD); setTextColor(Color.BLUE) })
             addView(chkUpdateTechDate)
-            addView(chkEditTechAlias)
-            addView(inputTechAlias)
             addView(chkDeleteTechAlias)
             addView(chkDeleteTechDate)
-
+            addView(chkEditTechAlias)
+            addView(inputTechAlias)
+            
             addView(Space(ctx).apply { minimumHeight = 18 })
 
-            addView(TextView(ctx).apply { text = "LIVRAISON"; textSize = 16f })
+            addView(TextView(ctx).apply { text = "Livraison"; textSize = 16f; setTypeface(typeface, Typeface.BOLD); setTextColor(Color.BLUE) })
             addView(chkUpdateLivrDate)
             addView(chkDeleteLivrDate)
 
             addView(Space(ctx).apply { minimumHeight = 18 })
 
-            addView(TextView(ctx).apply { text = "EMPLACEMENT"; textSize = 16f })
+            addView(TextView(ctx).apply { text = "Emplacement"; textSize = 16f;  setTypeface(typeface, Typeface.BOLD); setTextColor(Color.BLUE)})
             addView(chkUpdateEtg)
             addView(inputEtgCode)
         }
