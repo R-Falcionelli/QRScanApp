@@ -37,7 +37,12 @@ data class CorrectionOptions(
     val livrDate: java.util.Date? = null,
     val deleteTechDate: Boolean,
     val deleteLivrDate: Boolean,
-
+    val deleteSTDate: Boolean,
+    val deleteRetSTDate: Boolean,
+    val updateSTDate: Boolean,
+    val STDate: java.util.Date? = null,
+    val retourSTDate: Boolean,
+    val dateRetourST: java.util.Date? = null,
     val updateEmplacement: Boolean,
     val etgCode: String?,
     val etgId: Int?
@@ -230,6 +235,64 @@ class FlashQrRepository {
                         }
                     }
 
+                    // 7) Prise en charge S/T
+                    val dst = options.STDate
+                    if (options.updateSTDate && dst != null) {
+                        val sql = """
+                            UPDATE tFlashQR
+                            SET QfaPECST = ?, 
+                                QfaPECPar = '',
+                                EtgId = 0
+                            WHERE FqrId = ?
+                        """.trimIndent()
+                        conn.prepareStatement(sql).use { stmt ->
+                            stmt.setTimestamp(1, Timestamp(dst.time))
+                            stmt.setInt(2, options.fqrId)
+                            stmt.executeUpdate()
+                        }
+                    }
+
+                    // 8) Retour S/T
+                    val drst = options.dateRetourST
+                    if (options.retourSTDate && drst != null) {
+                        val sql = """
+                            UPDATE tFlashQR
+                            SET QfaRetourST = ?,                                 
+                                EtgId = 1953
+                            WHERE FqrId = ?
+                        """.trimIndent() // 1953 : S00 (local S/T)
+                        conn.prepareStatement(sql).use { stmt ->
+                            stmt.setTimestamp(1, Timestamp(drst.time))
+                            stmt.setInt(2, options.fqrId)
+                            stmt.executeUpdate()
+                        }
+                    }
+
+                    // 9) Suppression date de prise en charge S/T
+                    if (options.deleteSTDate) {
+                        val sql = """
+                            UPDATE tFlashQR
+                            SET QfaPECST = null 
+                            WHERE FqrId = ?
+                        """.trimIndent()
+                        conn.prepareStatement(sql).use { stmt ->
+                            stmt.setInt(1, options.fqrId)
+                            stmt.executeUpdate()
+                        }
+                    }
+
+                    // 10) Suppression date de retour S/T
+                    if (options.deleteRetSTDate) {
+                        val sql = """
+                            UPDATE tFlashQR
+                            SET QfaRetourST = null, EtgId=0
+                            WHERE FqrId = ?
+                        """.trimIndent()
+                        conn.prepareStatement(sql).use { stmt ->
+                            stmt.setInt(1, options.fqrId)
+                            stmt.executeUpdate()
+                        }
+                    }
                     conn.commit()
                 } catch (ex: Exception) {
                     conn.rollback()

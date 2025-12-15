@@ -1348,6 +1348,8 @@ class MainActivity : AppCompatActivity() {
         val ctx = this
         var selectedTechDate: Date? = null
         var selectedLivrDate: Date? = null
+        var selectedSTDate: Date? = null
+        var selectedRetSTDate: Date? = null
 
         // --- UI ---
         val chkUpdateTechDate = CheckBox(ctx).apply {
@@ -1411,6 +1413,36 @@ class MainActivity : AppCompatActivity() {
             isEnabled = false
         }
 
+        val chkDeleteSTDate = CheckBox(ctx).apply {
+            text = "Supprimer date de prise en charge S/T"
+            isChecked = false
+        }
+
+        val tvSTDate = TextView(ctx).apply {
+            text = "Prise en charge S/T"
+            visibility = View.GONE
+        }
+
+        val tvRetSTDate = TextView(ctx).apply {
+            text = "Retour S/T"
+            visibility = View.GONE
+        }
+
+        val chkPECST = CheckBox(ctx).apply {
+            text = "Mise à jour date prise en charge S/T"
+            isChecked = false
+        }
+
+        val chkPECRetST = CheckBox(ctx).apply {
+            text = "Mise à jour date de retour S/T"
+            isChecked = false
+        }
+
+        val chkDeleteRetSTDate = CheckBox(ctx).apply {
+            text = "Supprimer date Retour S/T"
+            isChecked = false
+        }
+
         // --- logique UI : modifier/supprimer alias sont exclusifs ---
         chkEditTechAlias.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) chkDeleteTechAlias.isChecked = false
@@ -1443,6 +1475,20 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        chkDeleteSTDate.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                chkPECST.isChecked = false
+                chkDeleteRetSTDate.isChecked =  false
+            }
+        }
+
+        chkDeleteRetSTDate.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                chkPECST.isChecked = false
+                chkDeleteSTDate.isChecked = false
+            }
+        }
+
         chkUpdateEtg.setOnCheckedChangeListener { _, isChecked ->
             inputEtgCode.isEnabled = isChecked
             if (!isChecked) inputEtgCode.text = null
@@ -1452,7 +1498,7 @@ class MainActivity : AppCompatActivity() {
             if (isChecked) {
                 showDatePicker(
                     ctx = ctx,
-                    defaultDate = diag.affDateFin, // 👉 clé de ton besoin
+                    defaultDate = diag.affDateFin,
                 ) { date ->
                     selectedTechDate = date
                     tvTechDate.text = SimpleDateFormat(
@@ -1471,7 +1517,7 @@ class MainActivity : AppCompatActivity() {
             if (isChecked) {
                 showDatePicker(
                     ctx = ctx,
-                    defaultDate = diag.expdDte, // 👉 clé de ton besoin
+                    defaultDate = diag.expdDte,
                 ) { date ->
                     selectedLivrDate = date
                     tvLivrDate.text = SimpleDateFormat(
@@ -1483,6 +1529,46 @@ class MainActivity : AppCompatActivity() {
             } else {
                 selectedLivrDate = null
                 tvLivrDate.visibility = View.GONE
+            }
+        }
+
+        chkPECST.setOnCheckedChangeListener { _, isChecked ->
+            val now = java.util.Date()
+            if (isChecked) {
+                showDatePicker(
+                    ctx = ctx,
+                    defaultDate = now,
+                ) { date ->
+                    selectedSTDate = date
+                    tvSTDate.text = SimpleDateFormat(
+                        "dd/MM/yyyy",
+                        Locale.FRANCE
+                    ).format(date)
+                    tvSTDate.visibility = View.VISIBLE
+                }
+            } else {
+                selectedSTDate = null
+                tvSTDate.visibility = View.GONE
+            }
+        }
+
+        chkPECRetST.setOnCheckedChangeListener { _, isChecked ->
+            val now = java.util.Date()
+            if (isChecked) {
+                showDatePicker(
+                    ctx = ctx,
+                    defaultDate = now,
+                ) { date ->
+                    selectedRetSTDate = date
+                    tvRetSTDate.text = SimpleDateFormat(
+                        "dd/MM/yyyy",
+                        Locale.FRANCE
+                    ).format(date)
+                    tvRetSTDate.visibility = View.VISIBLE
+                }
+            } else {
+                selectedSTDate = null
+                tvRetSTDate.visibility = View.GONE
             }
         }
 
@@ -1505,6 +1591,15 @@ class MainActivity : AppCompatActivity() {
             addView(chkUpdateLivrDate)
             addView(tvLivrDate)
             addView(chkDeleteLivrDate)
+
+            addView(Space(ctx).apply { minimumHeight = 18 })
+            addView(TextView(ctx).apply { text = "Sous-Traitance"; textSize = 16f; setTypeface(typeface, Typeface.BOLD); setTextColor(Color.BLUE) })
+            addView(chkDeleteSTDate)
+            addView(chkPECST)
+            addView(tvSTDate)
+            addView(chkDeleteRetSTDate)
+            addView(chkPECRetST)
+            addView(tvRetSTDate)
 
             addView(Space(ctx).apply { minimumHeight = 18 })
 
@@ -1568,19 +1663,22 @@ class MainActivity : AppCompatActivity() {
 
                         val options = CorrectionOptions(
                             fqrId = diag.fqrId,
-
                             updateTechAlias = chkEditTechAlias.isChecked,
                             deleteTechAlias = chkDeleteTechAlias.isChecked,
                             updateTechDate = chkUpdateTechDate.isChecked,
                             techDate = selectedTechDate,
                             deleteTechDate = chkDeleteTechDate.isChecked,
                             deleteLivrDate = chkDeleteLivrDate.isChecked,
+                            deleteSTDate = chkDeleteSTDate.isChecked,
+                            deleteRetSTDate = chkDeleteRetSTDate.isChecked,
                             livrDate = selectedLivrDate,
                             techAlias = alias,
-
                             updateTechDateFromAffDateFin = chkUpdateTechDate.isChecked,
                             updateLivrDateFromExpdDte = chkUpdateLivrDate.isChecked,
-
+                            updateSTDate = chkPECST.isChecked,
+                            STDate = selectedSTDate,
+                            retourSTDate = chkPECRetST.isChecked,
+                            dateRetourST = selectedRetSTDate,
                             updateEmplacement = chkUpdateEtg.isChecked,
                             etgCode = etgCode,
                             etgId = etgid
