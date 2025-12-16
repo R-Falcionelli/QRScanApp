@@ -699,7 +699,7 @@ class MainActivity : AppCompatActivity() {
         SELECT top 1 A.AffNoFI
         FROM tFlashQr F
         INNER JOIN tAffaire A on A.AffID = F.AffID
-        WHERE F.QrId = ? order by FrqId desc
+        WHERE F.QrId = ? order by FqrId desc
         """.trimIndent()
         } else {
             """
