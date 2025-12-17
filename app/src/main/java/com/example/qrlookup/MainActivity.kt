@@ -112,6 +112,11 @@ class MainActivity : AppCompatActivity() {
         val blDate: Date?
     )
 
+    data class FiLookupResult(
+        val affNoFI: String?,
+        val fqrId: Int
+    )
+
     private var current_info: AffaireInfo? = null
     private lateinit var etSearch: EditText
     private lateinit var btnSearch: Button
@@ -692,13 +697,13 @@ class MainActivity : AppCompatActivity() {
         }
         return result
     }
-    private fun findFiForCode(conn: java.sql.Connection, code: String): String? {
+    private fun findFiForCode(conn: java.sql.Connection, code: String): FiLookupResult? {
         // On choisit la requête SQL en fonction du format du code
         val sql = if (code.startsWith("OR-")) {
             """
-        SELECT top 1 A.AffNoFI
+        SELECT top 1 A.AffNoFI, F.FqrId
         FROM tFlashQr F
-        INNER JOIN tAffaire A on A.AffID = F.AffID
+        LEFT OUTER JOIN tAffaire A on A.AffID = F.AffID
         WHERE F.QrId = ? order by FqrId desc
         """.trimIndent()
         } else {
@@ -713,7 +718,10 @@ class MainActivity : AppCompatActivity() {
             ps.setString(1, code)
             ps.executeQuery().use { rs ->
                 return if (rs.next()) {
-                    rs.getString("AffNoFI")
+                    FiLookupResult(
+                        affNoFI = rs.getString("AffNoFI"),
+                        fqrId = rs.getInt("FqrId")
+                    )
                 } else {
                     null
                 }
@@ -725,7 +733,9 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             var fi: String? = null
+            var fqr: Int? = null
             var hadError = false
+            var FIResult: FiLookupResult?;
 
             try {
                 Class.forName("net.sourceforge.jtds.jdbc.Driver")
@@ -735,7 +745,9 @@ class MainActivity : AppCompatActivity() {
                 DriverManager.getConnection(url, "russe", "cia").use { conn ->
                     Log.d("AFF_SCAN", "Connexion SQL OK (coroutine / IO)")
 
-                    fi = findFiForCode(conn, code)
+                    FIResult = findFiForCode(conn, code)
+                    fi = FIResult?.affNoFI
+                    fqr = FIResult?.fqrId
                 }
             } catch (e: Exception) {
                 hadError = true
@@ -755,11 +767,27 @@ class MainActivity : AppCompatActivity() {
                         ).show()
                     }
                     !found -> {
-                        Toast.makeText(
-                            this@MainActivity,
-                            "Affaire introuvable : $code",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        if (code.startsWith("OR-")) {
+                            if (fqr != null) {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "L'appareil $code n'a pas encore été enregistré",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            } else {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Cet appareil ($code) n'existe pas !",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        } else {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Affaire introuvable : $code",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
                     }
                     else -> {
                         etSearch.setText(fi)
