@@ -708,7 +708,7 @@ class MainActivity : AppCompatActivity() {
         """.trimIndent()
         } else {
             """
-        SELECT AffNoFI
+        SELECT AffNoFI, 0 [FqrId]
         FROM tAffaire
         WHERE AffID = ?
         """.trimIndent()
