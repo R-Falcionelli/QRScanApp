@@ -168,7 +168,7 @@ class FlashQrRepository {
                             UPDATE tFlashQR
                             SET QfaPECTech = ?, 
                                 QfaPECPar = ?,
-                                EtgId=0EtgID
+                                EtgId=0
                             WHERE FqrId = ?
                         """.trimIndent()
                         conn.prepareStatement(sql).use { stmt ->
@@ -213,7 +213,7 @@ class FlashQrRepository {
                     if (options.deleteTechDate) {
                         val sql = """
                             UPDATE tFlashQR
-                            SET QfaPECPar = '', QfaPECtech = null 
+                            SET QfaPECPar = '', QfaPECTech = null 
                             WHERE FqrId = ?
                         """.trimIndent()
                         conn.prepareStatement(sql).use { stmt ->
