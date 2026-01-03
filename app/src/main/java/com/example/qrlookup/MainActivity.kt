@@ -69,6 +69,7 @@ class MainActivity : AppCompatActivity() {
         var numAff: String = "",
         var client: String = "",
         var st:String = "",
+        var distrib:String = "",
         var appareil: String = "",
         var marque: String = "",
         var type: String = "",
@@ -161,6 +162,7 @@ class MainActivity : AppCompatActivity() {
         val tvNumFI: TextView = findViewById(R.id.tvNumFI)
         val tvClient: TextView = findViewById(R.id.tvClient)
         val tvST: TextView = findViewById(R.id.tvST)
+        val tvDistrib:TextView = findViewById(R.id.tvDistrib)
         val tvAppareil: TextView = findViewById(R.id.tvAppareil)
         val tvMarque: TextView = findViewById(R.id.tvMarque)
         val tvType: TextView = findViewById(R.id.tvType)
@@ -301,10 +303,12 @@ class MainActivity : AppCompatActivity() {
                                 dbo.GetOpReal(tAffaire.AffID) as OpReal, dbo.GetDocs(tAffaire.AffID) [Docs], 
                                 dbo.GetConclusion(tAffaire.AffID) [Conclusion],
                                 cast(floor(tAffaire.PositAff) as varchar(4)) as PositAff,
-                                case when tAffaire.FrnIdSt is not null and tAffaire.FrnIdSt<>0 then 'S/T : ' + cast(FrnIdST as varchar(4)) + ' ' + FrnNom else 'S/T : N/A' end [S/T]
+                                case when tAffaire.FrnIdSt is not null and tAffaire.FrnIdSt<>0 then cast(FrnIdST as varchar(4)) + ' ' + FrnNom else 'N/A' end [S/T],
+                                case when tAffaire.EmpID is not null and tAffaire.EmpID<>'' then tEmployee.EmpPrenom + ' ' + tEmployee.EmpNom else '' end [Distrib]
                         FROM tFlashQR
                         JOIN trEtageres ON tFlashQR.EtgId = trEtageres.EtgId
                         JOIN tAffaire ON tAffaire.AffID = tFlashQR.AffID
+                        LEFT JOIN tEmployee ON tEmployee.EmpID = tAffaire.EmpID
                         LEFT JOIN tFournisseur ON tFournisseur.FrnID = tAffaire.FrnIdSt
                         LEFT JOIN tBlE2MEntete on tBlE2MEntete.BlmRefE2M = tAffaire.ExpdID
                         JOIN tClient ON tClient.CltId = tAffaire.CltId
@@ -329,8 +333,10 @@ class MainActivity : AppCompatActivity() {
                                    dbo.GetOpReal(tAffaire.AffID) as OpReal, dbo.GetDocs(tAffaire.AffID) [Docs], 
                                    dbo.GetConclusion(tAffaire.AffID) [Conclusion],
                                    cast(floor(tAffaire.PositAff) as varchar(4)) as PositAff,
-                                   case when tAffaire.FrnIdSt is not null and tAffaire.FrnIdSt<>0 then 'S/T : ' + cast(FrnIdST as varchar(4)) + ' ' + FrnNom else 'S/T : N/A' end [S/T]
+                                   case when tAffaire.FrnIdSt is not null and tAffaire.FrnIdSt<>0 then cast(FrnIdST as varchar(4)) + ' ' + FrnNom else 'N/A' end [S/T],
+                                   case when tAffaire.EmpID is not null and tAffaire.EmpID<>'' then tEmployee.EmpPrenom + ' ' + tEmployee.EmpNom else '' end [Distrib]
                             FROM tAffaire         
+                            LEFT JOIN tEmployee ON tEmployee.EmpID = tAffaire.EmpID
                             LEFT JOIN tFournisseur ON tFournisseur.FrnID = tAffaire.FrnIdSt
                             LEFT JOIN tBlE2MEntete on tBlE2MEntete.BlmRefE2M = tAffaire.ExpdID                                         
                             JOIN tClient ON tClient.CltId = tAffaire.CltId
@@ -411,7 +417,8 @@ class MainActivity : AppCompatActivity() {
                         setLabelValueStyle(tvNumFI, "N°FI : ", info.numfi, labelBold = true, valueBold = true, R.color.labelfi,R.color.valuefi)
                         setLabelValueStyle(tvAppareil, "Appareil : ", info.appareil , true, false)
                         setLabelValueStyle(tvClient, "", info.client , false, true, R.color.black, R.color.blue)
-                        setLabelValueStyle(tvST, "", info.st , false, true, R.color.black, R.color.par)
+                        setLabelValueStyle(tvST, "N°S/T : ", info.st , true, true, R.color.black, R.color.labelfi)
+                        setLabelValueStyle(tvDistrib, "Distribué à : ", info.distrib , true, true, R.color.black, R.color.par)
                         setLabelValueStyle(tvMarque, "Marque : ", info.marque , true, false, R.color.black, R.color.black)
                         setLabelValueStyle(tvType, "Type : ", info.type , true, false, R.color.black, R.color.black)
                         setLabelValueStyle(tvSerie, "N°Série : ", info.serie , true, false, R.color.black, R.color.black)
@@ -453,6 +460,7 @@ class MainActivity : AppCompatActivity() {
             tvNumFI.text = "N°FI"
             tvClient.text = "Client"
             tvST.text = "S/T"
+            tvDistrib.text = "Distribué à : "
             tvAppareil.text = "Appareil"
             tvMarque.text = "Marque"
             tvType.text = "Type"
@@ -855,6 +863,7 @@ class MainActivity : AppCompatActivity() {
         info.numfi = safeGetString(rs, "AffNoFI")
         info.client = safeGetString(rs, "Client")
         info.st = safeGetString(rs, "S/T")
+        info.distrib = safeGetString(rs, "Distrib")
         info.appareil = safeGetString(rs, "AffDesignation")
         info.marque = safeGetString(rs, "AffMarque")
         info.type = safeGetString(rs, "AffType")

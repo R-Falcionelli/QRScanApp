@@ -174,10 +174,16 @@
 
         <!-- SECTION 4 — Suivi -->
         <TextView
+            android:id="@+id/tvDistrib"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Distribué à" />
+        <TextView
             android:id="@+id/tvDateEntre"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="8dp"
             android:text="Entré le" />
 
         <TextView
