@@ -65,6 +65,7 @@ import java.util.Locale
 class MainActivity : AppCompatActivity() {
     data class AffaireInfo(
         var etgCode: String = "",
+        var qrcode: String = "",
         var numfi: String = "",
         var numAff: String = "",
         var domaine:String = "",
@@ -162,6 +163,7 @@ class MainActivity : AppCompatActivity() {
         val tvNumAff: TextView = findViewById(R.id.tvNumAff)
         val tvNumFI: TextView = findViewById(R.id.tvNumFI)
         val tvDomaine:TextView = findViewById(R.id.tvDomaine)
+        val tvQrCode:TextView = findViewById(R.id.tvQrCode)
         val tvClient: TextView = findViewById(R.id.tvClient)
         val tvST: TextView = findViewById(R.id.tvST)
         val tvDistrib:TextView = findViewById(R.id.tvDistrib)
@@ -307,7 +309,7 @@ class MainActivity : AppCompatActivity() {
                                 cast(floor(tAffaire.PositAff) as varchar(4)) as PositAff,
                                 case when tAffaire.FrnIdSt is not null and tAffaire.FrnIdSt<>0 then cast(FrnIdST as varchar(4)) + ' ' + FrnNom else 'N/A' end [S/T],
                                 case when tAffaire.EmpID is not null and tAffaire.EmpID<>'' then tEmployee.EmpPrenom + ' ' + tEmployee.EmpNom else '' end [Distrib],
-                                DomaineLibelle [Domaine]
+                                DomaineLibelle [Domaine], QrId
                         FROM tFlashQR
                         JOIN trEtageres ON tFlashQR.EtgId = trEtageres.EtgId
                         JOIN tAffaire ON tAffaire.AffID = tFlashQR.AffID
@@ -339,7 +341,7 @@ class MainActivity : AppCompatActivity() {
                                    cast(floor(tAffaire.PositAff) as varchar(4)) as PositAff,
                                    case when tAffaire.FrnIdSt is not null and tAffaire.FrnIdSt<>0 then cast(FrnIdST as varchar(4)) + ' ' + FrnNom else 'N/A' end [S/T],
                                    case when tAffaire.EmpID is not null and tAffaire.EmpID<>'' then tEmployee.EmpPrenom + ' ' + tEmployee.EmpNom else '' end [Distrib],
-                                   DomaineLibelle [Domaine]
+                                   DomaineLibelle [Domaine], '' [QrId]
                             FROM tAffaire         
                             LEFT JOIN tAffaireDomaine ON tAffaireDomaine.DomaineId = tAffaire.AffDomaineId
                             LEFT JOIN tEmployee ON tEmployee.EmpID = tAffaire.EmpID
@@ -393,6 +395,7 @@ class MainActivity : AppCompatActivity() {
                     // Affichage dans le TextView
                     //tvResult.text = info.etgCode
                     tvLblEmp.text = info.etgCode
+                    tvQrCode.text = info.qrcode
 
                     // Changement dynamique de la couleur selon le résultat
                     if (found){
@@ -402,12 +405,14 @@ class MainActivity : AppCompatActivity() {
                             tvLblEmp.setBackgroundColor(Color.RED)
                             tvLblEmp.setTextColor(Color.WHITE)
                             tvLblEmp.isVisible = true
+                            tvQrCode.isVisible = true
                             //tvResult.isVisible = true
                             //Toast.makeText(this, "Appareil non rangé sur étagère ou expédié", Toast.LENGTH_LONG).show()
                         } else {
                             if (info.etgCode=="")
                             {
                                 tvLblEmp.isVisible = false
+                                tvQrCode.isVisible = false
                                 //tvResult.isVisible = false
                             } else {
 //                                tvResult.setBackgroundColor(Color.parseColor("#006400")) // vert foncé
@@ -415,6 +420,8 @@ class MainActivity : AppCompatActivity() {
                                 tvLblEmp.setBackgroundColor(Color.parseColor("#006400")) // vert foncé
                                 tvLblEmp.setTextColor(Color.WHITE)
                                 tvLblEmp.isVisible = true
+                                tvQrCode.isVisible = true
+                                tvQrCode.setTextColor(Color.RED)
                                 //tvResult.isVisible = true
                             }
                         }
@@ -422,6 +429,7 @@ class MainActivity : AppCompatActivity() {
                         setLabelValueStyle(tvNumAff, "N°Affaire : ", info.numAff, labelBold = true, valueBold = true, R.color.labelfi,R.color.valuefi)
                         setLabelValueStyle(tvNumFI, "N°FI : ", info.numfi, labelBold = true, valueBold = true, R.color.labelfi,R.color.valuefi)
                         setLabelValueStyle(tvDomaine, "Domaine : ", info.domaine, labelBold = true, valueBold = true, R.color.labelfi,R.color.valuefi)
+                        setLabelValueStyle(tvQrCode, "QrCode : ", info.qrcode, labelBold = true, valueBold = true, R.color.black,R.color.valuefi)
                         setLabelValueStyle(tvAppareil, "Appareil : ", info.appareil , true, false)
                         setLabelValueStyle(tvClient, "", info.client , false, true, R.color.black, R.color.blue)
                         setLabelValueStyle(tvST, "N°S/T : ", info.st , true, true, R.color.black, R.color.labelfi)
@@ -468,6 +476,7 @@ class MainActivity : AppCompatActivity() {
             tvDomaine.text = "Domaine"
             tvClient.text = "Client"
             tvST.text = "S/T"
+            tvQrCode.text = "Qr Code"
             tvDistrib.text = "Distribué à : "
             tvAppareil.text = "Appareil"
             tvMarque.text = "Marque"
@@ -869,6 +878,7 @@ class MainActivity : AppCompatActivity() {
     fun fillFromResult(rs: ResultSet, info: AffaireInfo) {
         info.numAff = safeGetString(rs, "AffID")
         info.numfi = safeGetString(rs, "AffNoFI")
+        info.qrcode = safeGetString(rs, "QrId")
         info.domaine = safeGetString(rs, "Domaine")
         info.client = safeGetString(rs, "Client")
         info.st = safeGetString(rs, "S/T")
