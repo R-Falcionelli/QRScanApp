@@ -67,6 +67,7 @@ class MainActivity : AppCompatActivity() {
         var etgCode: String = "",
         var numfi: String = "",
         var numAff: String = "",
+        var domaine:String = "",
         var client: String = "",
         var st:String = "",
         var distrib:String = "",
@@ -160,6 +161,7 @@ class MainActivity : AppCompatActivity() {
         val tvResult: TextView = findViewById(R.id.tvResult)
         val tvNumAff: TextView = findViewById(R.id.tvNumAff)
         val tvNumFI: TextView = findViewById(R.id.tvNumFI)
+        val tvDomaine:TextView = findViewById(R.id.tvDomaine)
         val tvClient: TextView = findViewById(R.id.tvClient)
         val tvST: TextView = findViewById(R.id.tvST)
         val tvDistrib:TextView = findViewById(R.id.tvDistrib)
@@ -304,10 +306,12 @@ class MainActivity : AppCompatActivity() {
                                 dbo.GetConclusion(tAffaire.AffID) [Conclusion],
                                 cast(floor(tAffaire.PositAff) as varchar(4)) as PositAff,
                                 case when tAffaire.FrnIdSt is not null and tAffaire.FrnIdSt<>0 then cast(FrnIdST as varchar(4)) + ' ' + FrnNom else 'N/A' end [S/T],
-                                case when tAffaire.EmpID is not null and tAffaire.EmpID<>'' then tEmployee.EmpPrenom + ' ' + tEmployee.EmpNom else '' end [Distrib]
+                                case when tAffaire.EmpID is not null and tAffaire.EmpID<>'' then tEmployee.EmpPrenom + ' ' + tEmployee.EmpNom else '' end [Distrib],
+                                DomaineLibelle [Domaine]
                         FROM tFlashQR
                         JOIN trEtageres ON tFlashQR.EtgId = trEtageres.EtgId
                         JOIN tAffaire ON tAffaire.AffID = tFlashQR.AffID
+                        LEFT JOIN tAffaireDomaine ON tAffaireDomaine.DomaineId = tAffaire.AffDomaineId
                         LEFT JOIN tEmployee ON tEmployee.EmpID = tAffaire.EmpID
                         LEFT JOIN tFournisseur ON tFournisseur.FrnID = tAffaire.FrnIdSt
                         LEFT JOIN tBlE2MEntete on tBlE2MEntete.BlmRefE2M = tAffaire.ExpdID
@@ -334,8 +338,10 @@ class MainActivity : AppCompatActivity() {
                                    dbo.GetConclusion(tAffaire.AffID) [Conclusion],
                                    cast(floor(tAffaire.PositAff) as varchar(4)) as PositAff,
                                    case when tAffaire.FrnIdSt is not null and tAffaire.FrnIdSt<>0 then cast(FrnIdST as varchar(4)) + ' ' + FrnNom else 'N/A' end [S/T],
-                                   case when tAffaire.EmpID is not null and tAffaire.EmpID<>'' then tEmployee.EmpPrenom + ' ' + tEmployee.EmpNom else '' end [Distrib]
+                                   case when tAffaire.EmpID is not null and tAffaire.EmpID<>'' then tEmployee.EmpPrenom + ' ' + tEmployee.EmpNom else '' end [Distrib],
+                                   DomaineLibelle [Domaine]
                             FROM tAffaire         
+                            LEFT JOIN tAffaireDomaine ON tAffaireDomaine.DomaineId = tAffaire.AffDomaineId
                             LEFT JOIN tEmployee ON tEmployee.EmpID = tAffaire.EmpID
                             LEFT JOIN tFournisseur ON tFournisseur.FrnID = tAffaire.FrnIdSt
                             LEFT JOIN tBlE2MEntete on tBlE2MEntete.BlmRefE2M = tAffaire.ExpdID                                         
@@ -415,6 +421,7 @@ class MainActivity : AppCompatActivity() {
 
                         setLabelValueStyle(tvNumAff, "N°Affaire : ", info.numAff, labelBold = true, valueBold = true, R.color.labelfi,R.color.valuefi)
                         setLabelValueStyle(tvNumFI, "N°FI : ", info.numfi, labelBold = true, valueBold = true, R.color.labelfi,R.color.valuefi)
+                        setLabelValueStyle(tvDomaine, "Domaine : ", info.domaine, labelBold = true, valueBold = true, R.color.labelfi,R.color.valuefi)
                         setLabelValueStyle(tvAppareil, "Appareil : ", info.appareil , true, false)
                         setLabelValueStyle(tvClient, "", info.client , false, true, R.color.black, R.color.blue)
                         setLabelValueStyle(tvST, "N°S/T : ", info.st , true, true, R.color.black, R.color.labelfi)
@@ -458,6 +465,7 @@ class MainActivity : AppCompatActivity() {
         btnInit.setOnClickListener {
             tvNumAff.text = "N°Affaire"
             tvNumFI.text = "N°FI"
+            tvDomaine.text = "Domaine"
             tvClient.text = "Client"
             tvST.text = "S/T"
             tvDistrib.text = "Distribué à : "
@@ -861,6 +869,7 @@ class MainActivity : AppCompatActivity() {
     fun fillFromResult(rs: ResultSet, info: AffaireInfo) {
         info.numAff = safeGetString(rs, "AffID")
         info.numfi = safeGetString(rs, "AffNoFI")
+        info.domaine = safeGetString(rs, "Domaine")
         info.client = safeGetString(rs, "Client")
         info.st = safeGetString(rs, "S/T")
         info.distrib = safeGetString(rs, "Distrib")
