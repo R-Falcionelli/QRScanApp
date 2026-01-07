@@ -38,6 +38,7 @@ import java.sql.ResultSet
 import android.content.Intent
 import android.graphics.Paint
 import android.net.Uri
+import android.text.Editable
 import android.util.Log
 import android.view.Gravity
 import android.view.View
@@ -61,6 +62,7 @@ import android.widget.Space
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import android.text.TextWatcher
 
 class MainActivity : AppCompatActivity() {
     data class AffaireInfo(
@@ -802,11 +804,7 @@ class MainActivity : AppCompatActivity() {
                     !found -> {
                         if (code.startsWith("OR-")) {
                             if (fqr != null) {
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "L'appareil $code n'a pas encore été enregistré",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                showAssociateDialog(qrCode = code, fqrId = fqr!!)
                             } else {
                                 Toast.makeText(
                                     this@MainActivity,
@@ -823,6 +821,137 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                     else -> {
+                        etSearch.setText(fi)
+                        btnSearch.performClick()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showAssociateDialog(qrCode: String, fqrId: Int) {
+        val input = EditText(this).apply {
+            hint = "N°FI (ex : F5/16903)"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            isSingleLine = true
+        }
+
+        input.addTextChangedListener(object : TextWatcher {
+
+            private var editing = false
+
+            override fun afterTextChanged(s: Editable?) {
+                if (editing || s == null) return
+
+                val text = s.toString().uppercase().replace("/", "")
+                if (text.length >= 3) {
+                    editing = true
+
+                    // F5 + reste
+                    val formatted = text.substring(0, 2) + "/" + text.substring(2)
+                    s.replace(0, s.length, formatted)
+
+                    editing = false
+                }
+            }
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+
+        AlertDialog.Builder(this)
+            .setTitle("Appareil non enregistré")
+            .setMessage("Le QR $qrCode est présent mais n'est associé à aucune affaire.\n\nAssocier un N°FI ?")
+            .setView(input)
+            .setNegativeButton("Annuler", null)
+            .setPositiveButton("Associer") { _, _ ->
+                val fi = input.text.toString().trim()
+                if (fi.isBlank()) {
+                    Toast.makeText(this, "N°FI vide.", Toast.LENGTH_LONG).show()
+                    return@setPositiveButton
+                }
+                associateFiToQr(fqrId = fqrId, fi = fi, qrCode = qrCode)
+            }
+            .show()
+    }
+
+    private fun associateFiToQr(fqrId: Int, fi: String, qrCode: String) {
+
+        // Petit “attente”
+        val waiting = AlertDialog.Builder(this)
+            .setTitle("Association")
+            .setMessage("Association en cours…")
+            .setCancelable(false)
+            .create()
+        waiting.show()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            var hadError = false
+            var affId: String? = null   // adapte si AffID est String chez toi
+            var affLabel: String? = null
+            var updated = false
+
+            try {
+                Class.forName("net.sourceforge.jtds.jdbc.Driver")
+                val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+
+                DriverManager.getConnection(url, "russe", "cia").use { conn ->
+
+                    // 1) retrouver AffID à partir du N°FI
+                    conn.prepareStatement("""
+                    SELECT TOP 1 AffID, AffDesignation
+                    FROM tAffaire
+                    WHERE AffNoFI = ?
+                """.trimIndent()).use { ps ->
+                        ps.setString(1, fi)
+                        ps.executeQuery().use { rs ->
+                            if (rs.next()) {
+                                affId = rs.getString("AffID")
+                                affLabel = rs.getString("AffDesignation")
+                            }
+                        }
+                    }
+
+                    // 2) si AffID trouvé => UPDATE tFlashQR
+                    if (affId != null) {
+                        conn.prepareStatement("""
+                        UPDATE tFlashQR
+                        SET AffID = ?, QfaPECEnr=getdate()
+                        WHERE FqrId = ?
+                    """.trimIndent()).use { psUp ->
+                            psUp.setString(1, affId!!)
+                            psUp.setInt(2, fqrId)
+                            updated = (psUp.executeUpdate() > 0)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                hadError = true
+                Log.e("AFF_ASSOC", "ERREUR: ${e.message}")
+                Log.e("AFF_ASSOC", Log.getStackTraceString(e))
+            }
+
+            withContext(Dispatchers.Main) {
+                waiting.dismiss()
+
+                when {
+                    hadError -> {
+                        Toast.makeText(this@MainActivity, "Erreur de connexion / SQL", Toast.LENGTH_LONG).show()
+                    }
+                    affId == null -> {
+                        Toast.makeText(this@MainActivity, "N°FI inconnu : $fi", Toast.LENGTH_LONG).show()
+                    }
+                    !updated -> {
+                        Toast.makeText(this@MainActivity, "Update échoué (FqrId=$fqrId)", Toast.LENGTH_LONG).show()
+                    }
+                    else -> {
+                        // Confirmation + relance du flux normal
+                        Toast.makeText(
+                            this@MainActivity,
+                            "✅ Associé : $qrCode → $fi",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
                         etSearch.setText(fi)
                         btnSearch.performClick()
                     }
