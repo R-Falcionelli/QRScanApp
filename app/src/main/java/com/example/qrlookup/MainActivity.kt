@@ -473,6 +473,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnInit.setOnClickListener {
+            val containerDocs = findViewById<LinearLayout>(R.id.docsContainer)
+            containerDocs.removeAllViews()
+
+            val containerBL = findViewById<LinearLayout>(R.id.BLContainer)
+            containerBL.removeAllViews()
+
             tvNumAff.text = "N°Affaire"
             tvNumFI.text = "N°FI"
             tvDomaine.text = "Domaine"
@@ -703,7 +709,7 @@ class MainActivity : AppCompatActivity() {
             A.ExpdID,
             A.ExpdDte
         FROM tAffaire A
-        WHERE A.CltID = ?
+        WHERE A.CltID = ? and A.OffreID not in('PP', 'PDP', 'ADD')
         ORDER BY A.AffID DESC
         """.trimIndent()
             ).use { ps ->
@@ -1514,6 +1520,7 @@ class MainActivity : AppCompatActivity() {
     private fun showClientAffairesDialog(affaires: List<ClientAffaire>) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_affaires_client, null)
         val rv = dialogView.findViewById<RecyclerView>(R.id.rvAffairesClient)
+        val qteaff = affaires.count()
 
         rv.layoutManager = LinearLayoutManager(this)
         rv.adapter = ClientAffairesAdapter(affaires) { affaire ->
@@ -1524,7 +1531,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle("Affaires du client")
+            .setTitle("Affaires du client ($qteaff)")
             .setView(dialogView)
             .setNegativeButton("Fermer", null)
             .create()
