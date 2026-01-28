@@ -63,6 +63,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import android.text.TextWatcher
+import net.sourceforge.jtds.jdbc.DateTime
+import java.time.format.DateTimeFormatter
 
 class MainActivity : AppCompatActivity() {
     data class AffaireInfo(
@@ -118,6 +120,16 @@ class MainActivity : AppCompatActivity() {
         val blDate: Date?
     )
 
+    data class QrCodeDetail(
+        val fi: String,
+        val affaire: String,
+        val sasDate: Date?,
+        val enrDate: Date?,
+        val techDate: Date?,
+        val techPar: String,
+        val livrdate: Date?
+    )
+
     data class FiLookupResult(
         val affNoFI: String?,
         val fqrId: Int
@@ -128,6 +140,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnSearch: Button
     private lateinit var btnScanFi: Button
     private var currentClientId: Int? = null
+    private var currentQrId: String = ""
     private val repo = FlashQrRepository()
     private lateinit var tvLblEmp: TextView
     private var currentFqrId: Int? = 0
@@ -202,6 +215,35 @@ class MainActivity : AppCompatActivity() {
                     etSearch.setSelection(etSearch.text.length)
                 }
             }
+        }
+
+        tvQrCode.setOnClickListener {
+            val qrid = currentQrId
+             lifecycleScope.launch(Dispatchers.IO) {
+                 var DetailQrCode: List<QrCodeDetail> = emptyList()
+                 var hadError = false
+
+                 try {
+                     Class.forName("net.sourceforge.jtds.jdbc.Driver")
+                     val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+
+                     DriverManager.getConnection(url, "russe", "cia").use { conn ->
+                         DetailQrCode = getDetailQrCode(conn, qrid)
+                     }
+                 } catch (e: Exception) {
+                     hadError = true
+                     Log.e("DETAIL_QR", "Erreur getDetailQrCode : ${e.message}")
+                     Log.e("DETAIL_QR", Log.getStackTraceString(e))
+                 }
+
+                 withContext(Dispatchers.Main) {
+                     when {
+                         hadError -> Toast.makeText(this@MainActivity, "Erreur de connexion au serveur", Toast.LENGTH_LONG).show()
+                         DetailQrCode.isEmpty() -> Toast.makeText(this@MainActivity, "Aucun élément pour ce QrCode", Toast.LENGTH_LONG).show()
+                         else -> showDetailQrCodeDialog(DetailQrCode)
+                     }
+                 }
+             }
         }
 
         tvClient.setOnClickListener {
@@ -359,6 +401,7 @@ class MainActivity : AppCompatActivity() {
                         found = true
                         info.etgCode = safeGetString(rs, "EtgCode")
                         currentClientId = safeGetInt(rs, "ClientId")
+                        currentQrId = safeGetString(rs, "QrId")
                         currentFqrId = safeGetInt(rs, "FqrId")
                         fillFromResult(rs, info)
                         current_info = info
@@ -373,6 +416,7 @@ class MainActivity : AppCompatActivity() {
                             found = true
                             info.etgCode = "" // pas dispo ici
                             currentClientId = safeGetInt(rs2, "ClientId")
+                            currentQrId = safeGetString(rs, "QrId")
                             fillFromResult(rs2, info)
                             current_info = info
                             runOnUiThread {
@@ -451,6 +495,11 @@ class MainActivity : AppCompatActivity() {
                         setLabelValueStyle(tvPosit, "Position ", info.positaff , true, true, R.color.black, R.color.posit)
 
                         tvClient.apply {
+                            paintFlags = paintFlags or Paint.UNDERLINE_TEXT_FLAG
+                            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.blue))
+                        }
+
+                        tvQrCode.apply {
                             paintFlags = paintFlags or Paint.UNDERLINE_TEXT_FLAG
                             setTextColor(ContextCompat.getColor(this@MainActivity, R.color.blue))
                         }
@@ -691,6 +740,52 @@ class MainActivity : AppCompatActivity() {
     //endregion
 
     //region SQL
+    private fun getDetailQrCode(conn: Connection, qrid: String): List<QrCodeDetail>{
+        val result = mutableListOf<QrCodeDetail>()
+
+        try{
+            conn.prepareStatement(
+                """
+        SELECT 
+            AffNoFI, F.AffID, QfaPECSAS, QfaPECEnr, 
+            QfaPECTech, QfaPECPar, QfaPECLivr
+        FROM tFlashQr F
+        LEFT JOIN tAffaire A on A.AffID = F.AffID
+        WHERE QrId = ?
+        ORDER BY QrId DESC
+        """.trimIndent()
+            ).use { ps ->
+                ps.setString(1, qrid.toString())
+                ps.executeQuery().use { rs ->
+                    while (rs.next()) {
+                        result.add(
+                            QrCodeDetail(
+                                fi = rs.getString("AffNoFI"),
+                                affaire = rs.getString("AffID"),
+                                sasDate = safeGetDateTime(rs, "QfaPECSAS"),
+                                enrDate = safeGetDateTime(rs,"QfaPECEnr"),
+                                techDate = safeGetDateTime(rs,"QfaPECTech"),
+                                techPar = rs.getString("QfaPECPar"),
+                                livrdate = safeGetDateTime(rs,"QfaPECLivr")
+                            )
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("DETAIL_QR", "Erreur dans getDetailQrCode : ${e.message}", e)
+        }
+
+        return result
+    }
+
+    fun safeGetDateTime(rs: ResultSet, column: String): Date? {
+        return try {
+            rs.getTimestamp(column)  // DATETIME → Timestamp → Date avec heure
+        } catch (e: Exception) {
+            null
+        }
+    }
     private fun getAffairesByClient(conn: Connection, clientId: Int?): List<ClientAffaire> {
         val result = mutableListOf<ClientAffaire>()
 
@@ -1462,6 +1557,59 @@ class MainActivity : AppCompatActivity() {
         }
         return title
     }
+
+    private fun buildTitle2(qrcode:String): TextView{
+        val title = TextView(this).apply {
+            text = "QR Code $qrcode"
+            setPadding(20, 40, 20, 20)
+            background = ContextCompat.getDrawable(context, R.drawable.titlebl_button)
+            textSize = 18f
+            setTextColor(Color.WHITE)
+            setTypeface(null, Typeface.BOLD)
+            gravity = Gravity.CENTER
+        }
+        return title
+    }
+    private fun showDetailQrCodeDialog(QrCodeDetail: List<QrCodeDetail>) {
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 32, 32, 32)
+        }
+
+        // Pour chaque QrId on crée une cardview (en principe, un seul)
+        QrCodeDetail.forEach{QrCodeDetail->
+            val cardView = layoutInflater.inflate(
+                R.layout.item_qrcode_detail,
+                container,
+                false
+            )
+            // Récupération des textview
+            val tvFI = cardView.findViewById<TextView>(R.id.tvFI)
+            val tvAffaire = cardView.findViewById<TextView>(R.id.tvAffaire)
+            val tvSasDate = cardView.findViewById<TextView>(R.id.tvQfaPECSas)
+            val tvEnrDate = cardView.findViewById<TextView>(R.id.tvQfaPECEnr)
+            val tvTechDatePar = cardView.findViewById<TextView>(R.id.tvQfaPECTech)
+
+            // On injecte les donées
+            tvFI.text = "N°FI :  ${QrCodeDetail.fi}"
+            tvAffaire.text = "N°Affaire : ${QrCodeDetail.affaire}"
+            tvSasDate.text = "Créé le : ${QrCodeDetail.sasDate ?: "absent"}"
+            tvEnrDate.text = "Enregistré le : ${QrCodeDetail.enrDate ?: "absent"}"
+            tvTechDatePar.text = "Pris en charge le : ${QrCodeDetail.techDate ?: "absent"} par ${QrCodeDetail.techPar}"
+            container.addView(cardView)
+        }
+
+        val scroll = ScrollView(this).apply {
+            addView(container)
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setCustomTitle(buildTitle2(currentQrId))
+            .setView(scroll)
+            .setNegativeButton("Fermer", null)
+            .create()
+        detailQrCodeDialog = dialog
+        dialog.show()
+    }
     private fun showAffairesDialog(affaires: List<Affaire>, bl:String) {
 
         val container = LinearLayout(this).apply {
@@ -1517,6 +1665,7 @@ class MainActivity : AppCompatActivity() {
     private var currentAffairesDialog: AlertDialog? = null
 
     private var clientAffairesDialog: AlertDialog? = null
+    private var detailQrCodeDialog: AlertDialog? = null
     private fun showClientAffairesDialog(affaires: List<ClientAffaire>) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_affaires_client, null)
         val rv = dialogView.findViewById<RecyclerView>(R.id.rvAffairesClient)
@@ -1539,7 +1688,6 @@ class MainActivity : AppCompatActivity() {
         clientAffairesDialog = dialog
         dialog.show()
     }
-
     private fun showToast(msg: String) =
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 

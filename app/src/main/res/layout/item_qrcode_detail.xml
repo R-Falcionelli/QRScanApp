@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    app:cardCornerRadius="10dp"
+    app:cardElevation="4dp"
+    app:cardUseCompatPadding="true"
+    android:foreground="?attr/selectableItemBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/tvFI"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:text="FI : F6/20000"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvAffaire"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="N°Affaire"
+            android:paddingTop="4dp"
+            android:textSize="14sp"/>
+
+        <TextView
+            android:id="@+id/tvQfaPECSas"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Créé le"
+            android:paddingTop="4dp"
+            android:textSize="14sp"/>
+
+        <TextView
+            android:id="@+id/tvQfaPECEnr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Enregistré le"
+            android:paddingTop="4dp"
+            android:textSize="14sp"/>
+
+        <TextView
+            android:id="@+id/tvQfaPECTech"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Pris en charge par / Le"
+            android:paddingTop="4dp"
+            android:textSize="14sp"/>
+
+        <TextView
+            android:id="@+id/tvQfaPECLivr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Pour livraison le"
+            android:paddingTop="4dp"
+            android:textSize="14sp"/>
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>
