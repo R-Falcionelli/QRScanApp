@@ -130,6 +130,12 @@ class MainActivity : AppCompatActivity() {
         val livrdate: Date?
     )
 
+    data class ListeQRRow(
+        val fi: String,
+        val affid: String,
+        val qrid: String,
+        val dateSAS: Date?
+    )
     data class FiLookupResult(
         val affNoFI: String?,
         val fqrId: Int
@@ -139,9 +145,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etSearch: EditText
     private lateinit var btnSearch: Button
     private lateinit var btnScanFi: Button
+    private lateinit var btnListeQR: Button
     private var currentClientId: Int? = null
     private var currentQrId: String = ""
     private val repo = FlashQrRepository()
+    private lateinit var rvListeQR: RecyclerView
+
     private lateinit var tvLblEmp: TextView
     private var currentFqrId: Int? = 0
     private var currentTechAlias: String = ""
@@ -164,7 +173,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -172,6 +180,7 @@ class MainActivity : AppCompatActivity() {
         etSearch   = findViewById(R.id.etSearch)
         btnSearch  = findViewById(R.id.btnSearch)
         btnScanFi  = findViewById(R.id.btnScanFi)
+        btnListeQR =  findViewById(R.id.btnListeQR)
 
         val btnInit = findViewById<Button>(R.id.btnInit)
         val tvResult: TextView = findViewById(R.id.tvResult)
@@ -219,6 +228,12 @@ class MainActivity : AppCompatActivity() {
 
         tvQrCode.setOnClickListener {
             val qrid = currentQrId
+
+            if (qrid==null || qrid == "") {
+                Toast.makeText(this, "Pas de QR Code", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
              lifecycleScope.launch(Dispatchers.IO) {
                  var DetailQrCode: List<QrCodeDetail> = emptyList()
                  var hadError = false
@@ -310,6 +325,10 @@ class MainActivity : AppCompatActivity() {
         btnScanFi.setOnClickListener {
             val intent = Intent(this, QrScanActivity::class.java)
             qrScanLauncher.launch(intent)
+        }
+
+        btnListeQR.setOnClickListener {
+            loadListeQRRow()
         }
 
         btnSearch.setOnClickListener {
@@ -416,7 +435,7 @@ class MainActivity : AppCompatActivity() {
                             found = true
                             info.etgCode = "" // pas dispo ici
                             currentClientId = safeGetInt(rs2, "ClientId")
-                            currentQrId = safeGetString(rs, "QrId")
+                            currentQrId = safeGetString(rs2, "QrId")
                             fillFromResult(rs2, info)
                             current_info = info
                             runOnUiThread {
@@ -740,6 +759,46 @@ class MainActivity : AppCompatActivity() {
     //endregion
 
     //region SQL
+    private fun loadListeQRRow(){
+        lifecycleScope.launch(Dispatchers.IO){
+            val rows = mutableListOf<ListeQRRow>()
+            try {
+                Class.forName("net.sourceforge.jtds.jdbc.Driver")
+                val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+                DriverManager.getConnection(url, "user", "pass").use { conn ->
+                    conn.prepareStatement("""
+                    SELECT 
+                        tFlashQr.AffID,
+                        tAffaire.AffNoFI,
+                        tFlashQR.QRId,
+                        tFlashQR.QfaPECSAS
+                    FROM tFlashQR
+                    JOIN tAffaire ON tAffaire.AffID = tFlashQR.AffID                    
+                    ORDER BY tFlashQR.FqrId DESC
+                """.trimIndent()).use { ps ->
+                        val rs = ps.executeQuery()
+                        while (rs.next()) {
+                            rows.add(
+                                ListeQRRow(
+                                    affid = rs.getString("AffID"),
+                                    fi = rs.getString("AffNoFI") ?: "",
+                                    qrid = rs.getString("QRId") ?: "",
+                                    dateSAS = rs.getTimestamp("QfaPECSAS")
+                                )
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            /*withContext(Dispatchers.Main) {
+                showlisteQRDialog(ListeQRRow)
+                }
+            }*/
+        }
+    }
     private fun getDetailQrCode(conn: Connection, qrid: String): List<QrCodeDetail>{
         val result = mutableListOf<QrCodeDetail>()
 
@@ -1665,6 +1724,7 @@ class MainActivity : AppCompatActivity() {
     private var currentAffairesDialog: AlertDialog? = null
 
     private var clientAffairesDialog: AlertDialog? = null
+    private var listeQRDialog: AlertDialog? = null
     private var detailQrCodeDialog: AlertDialog? = null
     private fun showClientAffairesDialog(affaires: List<ClientAffaire>) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_affaires_client, null)
@@ -1686,6 +1746,28 @@ class MainActivity : AppCompatActivity() {
             .create()
 
         clientAffairesDialog = dialog
+        dialog.show()
+    }
+
+    private fun showlisteQRDialog(listeqr: List<ListeQRRow>) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_liste_code, null)
+        val rv = dialogView.findViewById<RecyclerView>(R.id.rvListeQR)
+
+        rv.layoutManager = LinearLayoutManager(this)
+        rv.adapter = ListeQRAdapter(listeqr) { listeqr ->
+            // clic sur un Qr Code :
+            listeQRDialog?.dismiss()
+            // On recharge l'affaire comme d'habitude :
+            loadByAffaireCode(listeqr.affid)
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Liste des QR Code")
+            .setView(dialogView)
+            .setNegativeButton("Fermer", null)
+            .create()
+
+        listeQRDialog = dialog
         dialog.show()
     }
     private fun showToast(msg: String) =

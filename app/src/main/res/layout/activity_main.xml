@@ -38,7 +38,7 @@
                 android:textSize="10sp" />
 
             <Space
-                android:layout_width="12dp"
+                android:layout_width="10dp"
                 android:layout_height="0dp" />
 
             <Button
@@ -52,7 +52,20 @@
                 app:iconPadding="0dp" />
 
             <Space
-                android:layout_width="12dp"
+                android:layout_width="10dp"
+                android:layout_height="0dp" />
+
+            <Button
+                android:id="@+id/btnListeQR"
+                android:layout_width="wrap_content"
+                android:layout_height="24dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:text="Liste"
+                android:textSize="10dp" />
+
+            <Space
+                android:layout_width="10dp"
                 android:layout_height="0dp" />
 
             <Button
@@ -72,35 +85,35 @@
             android:layout_marginTop="16dp"
             android:background="#33000000" />
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:orientation="horizontal">
-
-        <TextView
-            android:id="@+id/tvLblEmp"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="A12"
-            android:padding="12dp"
-            android:visibility="gone"
-            android:background="@drawable/bg_button_like"
-            android:textColor="@android:color/white"/>
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/tvQrCode"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="OR-"
-            android:padding="12dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:visibility="gone"/>
+            <TextView
+                android:id="@+id/tvLblEmp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_button_like"
+                android:padding="12dp"
+                android:text="A12"
+                android:textColor="@android:color/white"
+                android:visibility="gone" />
 
-    </LinearLayout>
+            <TextView
+                android:id="@+id/tvQrCode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="12dp"
+                android:text="OR-"
+                android:visibility="gone" />
+
+        </LinearLayout>
 
         <!-- SECTION 2 — Identification -->
 
@@ -114,8 +127,8 @@
                 android:id="@+id/tvNumFI"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="0.7"
                 android:layout_marginTop="16dp"
+                android:layout_weight="0.7"
                 android:text="N°FI"
                 android:textStyle="bold" />
 
@@ -123,8 +136,8 @@
                 android:id="@+id/tvDomaine"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1.3"
                 android:layout_marginTop="16dp"
+                android:layout_weight="1.3"
                 android:text="Domaine"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -227,6 +240,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="Distribué à" />
+
         <TextView
             android:id="@+id/tvDateEntre"
             android:layout_width="match_parent"
@@ -432,14 +446,14 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-<!--                <Button-->
-<!--                    android:id="@+id/btnEmplacement"-->
-<!--                    android:layout_width="wrap_content"-->
-<!--                    android:layout_height="wrap_content"-->
-<!--                    android:text="Emplacement"-->
-<!--                    android:padding="12dp"-->
-<!--                    android:backgroundTint="@color/BtnEmp"-->
-<!--                    android:textColor="@android:color/white"/>-->
+            <!--                <Button-->
+            <!--                    android:id="@+id/btnEmplacement"-->
+            <!--                    android:layout_width="wrap_content"-->
+            <!--                    android:layout_height="wrap_content"-->
+            <!--                    android:text="Emplacement"-->
+            <!--                    android:padding="12dp"-->
+            <!--                    android:backgroundTint="@color/BtnEmp"-->
+            <!--                    android:textColor="@android:color/white"/>-->
 
             <TextView
                 android:id="@+id/tvResult"
