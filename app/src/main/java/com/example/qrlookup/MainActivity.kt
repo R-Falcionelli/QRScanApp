@@ -328,7 +328,31 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnListeQR.setOnClickListener {
-            loadListeQRRow()
+            lifecycleScope.launch(Dispatchers.IO) {
+                var listeqr: List<ListeQRRow> = emptyList()
+                var hadError = false
+
+                try {
+                    Class.forName("net.sourceforge.jtds.jdbc.Driver")
+                    val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+
+                    DriverManager.getConnection(url, "russe", "cia").use { conn ->
+                        listeqr = getListeQRCode(conn)
+                    }
+                } catch (e: Exception) {
+                    hadError = true
+                    Log.e("LISTE_QR", "Erreur getListeQRCode : ${e.message}")
+                    Log.e("LISTE_QR", Log.getStackTraceString(e))
+                }
+
+                withContext(Dispatchers.Main) {
+                    when {
+                        hadError -> Toast.makeText(this@MainActivity, "Erreur de connexion au serveur", Toast.LENGTH_LONG).show()
+                        listeqr.isEmpty() -> Toast.makeText(this@MainActivity, "Aucune liste", Toast.LENGTH_LONG).show()
+                        else -> showlisteQRDialog(listeqr)
+                    }
+                }
+            }
         }
 
         btnSearch.setOnClickListener {
@@ -759,46 +783,6 @@ class MainActivity : AppCompatActivity() {
     //endregion
 
     //region SQL
-    private fun loadListeQRRow(){
-        lifecycleScope.launch(Dispatchers.IO){
-            val rows = mutableListOf<ListeQRRow>()
-            try {
-                Class.forName("net.sourceforge.jtds.jdbc.Driver")
-                val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
-                DriverManager.getConnection(url, "user", "pass").use { conn ->
-                    conn.prepareStatement("""
-                    SELECT 
-                        tFlashQr.AffID,
-                        tAffaire.AffNoFI,
-                        tFlashQR.QRId,
-                        tFlashQR.QfaPECSAS
-                    FROM tFlashQR
-                    JOIN tAffaire ON tAffaire.AffID = tFlashQR.AffID                    
-                    ORDER BY tFlashQR.FqrId DESC
-                """.trimIndent()).use { ps ->
-                        val rs = ps.executeQuery()
-                        while (rs.next()) {
-                            rows.add(
-                                ListeQRRow(
-                                    affid = rs.getString("AffID"),
-                                    fi = rs.getString("AffNoFI") ?: "",
-                                    qrid = rs.getString("QRId") ?: "",
-                                    dateSAS = rs.getTimestamp("QfaPECSAS")
-                                )
-                            )
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-
-            /*withContext(Dispatchers.Main) {
-                showlisteQRDialog(ListeQRRow)
-                }
-            }*/
-        }
-    }
     private fun getDetailQrCode(conn: Connection, qrid: String): List<QrCodeDetail>{
         val result = mutableListOf<QrCodeDetail>()
 
@@ -844,6 +828,42 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             null
         }
+    }
+
+    private fun getListeQRCode(conn: Connection): List<ListeQRRow>{
+        val rows = mutableListOf<ListeQRRow>()
+
+        try {
+            Class.forName("net.sourceforge.jtds.jdbc.Driver")
+            val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+            DriverManager.getConnection(url, "russe", "cia").use { conn ->
+                conn.prepareStatement("""
+                SELECT 
+                    tFlashQr.AffID,
+                    tAffaire.AffNoFI,
+                    tFlashQR.QRId,
+                    tFlashQR.QfaPECSAS
+                FROM tFlashQR
+                JOIN tAffaire ON tAffaire.AffID = tFlashQR.AffID                    
+                ORDER BY tFlashQR.FqrId DESC
+            """.trimIndent()).use { ps ->
+                    val rs = ps.executeQuery()
+                    while (rs.next()) {
+                        rows.add(
+                            ListeQRRow(
+                                affid = rs.getString("AffID"),
+                                fi = rs.getString("AffNoFI") ?: "",
+                                qrid = rs.getString("QRId") ?: "",
+                                dateSAS = rs.getTimestamp("QfaPECSAS")
+                            )
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return rows
     }
     private fun getAffairesByClient(conn: Connection, clientId: Int?): List<ClientAffaire> {
         val result = mutableListOf<ClientAffaire>()

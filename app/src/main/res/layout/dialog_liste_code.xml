@@ -1,50 +1,77 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
     android:padding="16dp">
 
+    <!-- Titre -->
+    <TextView
+        android:id="@+id/tvTitreListeQr"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Liste des QR Code"
+        android:textStyle="bold"
+        android:textSize="18sp"
+        android:gravity="center"
+        android:paddingBottom="12dp" />
+
+    <!-- Ligne d'entêtes -->
     <LinearLayout
-        android:id="@+id/headerFlashQr"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:paddingTop="8dp"
-        android:paddingBottom="4dp">
+        android:paddingVertical="4dp">
 
         <TextView
             android:layout_width="0dp"
+            android:layout_weight="2"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="N°Affaire"
-            android:textStyle="bold"/>
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="N°FI"
-            android:textStyle="bold"/>
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="QR Code"
-            android:textStyle="bold"/>
+            android:textStyle="bold"
+            android:textSize="12sp" />
 
         <TextView
             android:layout_width="0dp"
+            android:layout_weight="3"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:paddingStart="6dp"
+            android:text="N° Affaire"
+            android:textStyle="bold"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_weight="2"
+            android:layout_height="wrap_content"
+            android:paddingStart="6dp"
+            android:text="N° FI"
+            android:textStyle="bold"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_weight="3"
+            android:layout_height="wrap_content"
+            android:gravity="end"
             android:text="Créé le"
-            android:textStyle="bold"/>
+            android:textStyle="bold"
+            android:textSize="11sp" />
     </LinearLayout>
 
+    <!-- Séparateur -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#DDDDDD"
+        android:layout_marginBottom="4dp" />
+
+    <!-- RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvListeQR"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:paddingTop="4dp" />
-</FrameLayout>
+
+</LinearLayout>
