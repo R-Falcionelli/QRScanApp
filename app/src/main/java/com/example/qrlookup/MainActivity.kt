@@ -63,6 +63,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import android.text.TextWatcher
+import android.view.ViewGroup
 import net.sourceforge.jtds.jdbc.DateTime
 import java.time.format.DateTimeFormatter
 
@@ -155,7 +156,7 @@ class MainActivity : AppCompatActivity() {
     private var currentFqrId: Int? = 0
     private var currentTechAlias: String = ""
 
-    // ✅ Nouveau launcher moderne pour récupérer le résultat du scan
+    // Nouveau launcher moderne pour récupérer le résultat du scan
     private val qrScanLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -177,6 +178,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        //region Initialisation variable textview et button
         etSearch   = findViewById(R.id.etSearch)
         btnSearch  = findViewById(R.id.btnSearch)
         btnScanFi  = findViewById(R.id.btnScanFi)
@@ -225,40 +227,16 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-
+        //endregion
         tvQrCode.setOnClickListener {
             val qrid = currentQrId
 
-            if (qrid==null || qrid == "") {
+            if (qrid.isNullOrBlank()) {
                 Toast.makeText(this, "Pas de QR Code", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-             lifecycleScope.launch(Dispatchers.IO) {
-                 var DetailQrCode: List<QrCodeDetail> = emptyList()
-                 var hadError = false
-
-                 try {
-                     Class.forName("net.sourceforge.jtds.jdbc.Driver")
-                     val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
-
-                     DriverManager.getConnection(url, "russe", "cia").use { conn ->
-                         DetailQrCode = getDetailQrCode(conn, qrid)
-                     }
-                 } catch (e: Exception) {
-                     hadError = true
-                     Log.e("DETAIL_QR", "Erreur getDetailQrCode : ${e.message}")
-                     Log.e("DETAIL_QR", Log.getStackTraceString(e))
-                 }
-
-                 withContext(Dispatchers.Main) {
-                     when {
-                         hadError -> Toast.makeText(this@MainActivity, "Erreur de connexion au serveur", Toast.LENGTH_LONG).show()
-                         DetailQrCode.isEmpty() -> Toast.makeText(this@MainActivity, "Aucun élément pour ce QrCode", Toast.LENGTH_LONG).show()
-                         else -> showDetailQrCodeDialog(DetailQrCode)
-                     }
-                 }
-             }
+            loadAndShowDetailQrCode(qrid, fromListe = false)
         }
 
         tvClient.setOnClickListener {
@@ -783,6 +761,46 @@ class MainActivity : AppCompatActivity() {
     //endregion
 
     //region SQL
+    private fun loadAndShowDetailQrCode(qrid: String, fromListe: Boolean) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            var detailQrCode: List<QrCodeDetail> = emptyList()
+            var hadError = false
+
+            try {
+                Class.forName("net.sourceforge.jtds.jdbc.Driver")
+                val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+
+                DriverManager.getConnection(url, "russe", "cia").use { conn ->
+                    detailQrCode = getDetailQrCode(conn, qrid)
+                }
+            } catch (e: Exception) {
+                hadError = true
+                Log.e("DETAIL_QR", "Erreur getDetailQrCode : ${e.message}")
+                Log.e("DETAIL_QR", Log.getStackTraceString(e))
+            }
+
+            withContext(Dispatchers.Main) {
+                when {
+                    hadError ->
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Erreur de connexion au serveur",
+                            Toast.LENGTH_LONG
+                        ).show()
+
+                    detailQrCode.isEmpty() ->
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Aucun élément pour ce QrCode",
+                            Toast.LENGTH_LONG
+                        ).show()
+
+                    else ->
+                        showDetailQrCodeDialog(detailQrCode, fromListe)
+                }
+            }
+        }
+    }
     private fun getDetailQrCode(conn: Connection, qrid: String): List<QrCodeDetail>{
         val result = mutableListOf<QrCodeDetail>()
 
@@ -1314,6 +1332,38 @@ class MainActivity : AppCompatActivity() {
         textView.text = spannable
     }
 
+
+    //region PDF
+    private fun openPdf(localFile: File) {
+        val uri: Uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", localFile)
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/pdf")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
+        }
+        try {
+            startActivity(Intent.createChooser(intent, "Ouvrir avec…"))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Aucune application PDF installée.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun sharePdf(localFile: File) {
+        val uri: Uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", localFile)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        try {
+            startActivity(Intent.createChooser(intent, "Partager le PDF"))
+        } catch (_: Exception) {
+            Toast.makeText(this, "Impossible de partager ce PDF.", Toast.LENGTH_LONG).show()
+        }
+    }
+    //endregion
+
+    //region Divers fonctions
     private fun downloadDocFromServer(
         serverIp: String,           // "10.135.214.5" (évite le nom NetBIOS si DNS incertain)
         shareName: String,          // "Documents"
@@ -1367,39 +1417,6 @@ class MainActivity : AppCompatActivity() {
             null
         }
     }
-
-
-    //region PDF
-    private fun openPdf(localFile: File) {
-        val uri: Uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", localFile)
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/pdf")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
-        }
-        try {
-            startActivity(Intent.createChooser(intent, "Ouvrir avec…"))
-        } catch (e: Exception) {
-            Toast.makeText(this, "Aucune application PDF installée.", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun sharePdf(localFile: File) {
-        val uri: Uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", localFile)
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/pdf"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        try {
-            startActivity(Intent.createChooser(intent, "Partager le PDF"))
-        } catch (_: Exception) {
-            Toast.makeText(this, "Impossible de partager ce PDF.", Toast.LENGTH_LONG).show()
-        }
-    }
-    //endregion
-
-    //region Divers fonctions
     private fun docTypeFolder(type: String): String {
         val t = type.uppercase()
 
@@ -1415,6 +1432,7 @@ class MainActivity : AppCompatActivity() {
 
         return t
     }
+
     private fun findDocLocationForType(
         serverIp: String,
         shareName: String,
@@ -1472,6 +1490,7 @@ class MainActivity : AppCompatActivity() {
         }
         return "" to ""
     }
+
     private fun yearFromFi(fi: String): String {
         val s = fi.trim().uppercase()
         if (s.length < 2) return ""
@@ -1516,6 +1535,7 @@ class MainActivity : AppCompatActivity() {
             bases.map { "$it/$zone/$dirdoc/$year" }
         }
     }
+
     private fun normalizeDocType(type:String):String{
         val t = type.uppercase()
         return when {
@@ -1526,7 +1546,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
     private fun normalizeFi(fi: String) = fi.replace("/", "").trim()
 
     private fun showDocLocationPopup(doc: String, numFi: String) {
@@ -1536,6 +1555,7 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("OK", null)
             .show()
     }
+
     fun safeGetString(rs: ResultSet, column: String): String {
         return try {
             val value = rs.getString(column)
@@ -1649,14 +1669,17 @@ class MainActivity : AppCompatActivity() {
         }
         return title
     }
-    private fun showDetailQrCodeDialog(QrCodeDetail: List<QrCodeDetail>) {
+    //endregion
+
+    //region showdialog
+    private fun showDetailQrCodeDialog(qrCodeDetailList: List<QrCodeDetail>, fromListe: Boolean) {
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 32, 32, 32)
         }
 
         // Pour chaque QrId on crée une cardview (en principe, un seul)
-        QrCodeDetail.forEach{QrCodeDetail->
+        qrCodeDetailList.forEach { detail ->
             val cardView = layoutInflater.inflate(
                 R.layout.item_qrcode_detail,
                 container,
@@ -1669,23 +1692,43 @@ class MainActivity : AppCompatActivity() {
             val tvEnrDate = cardView.findViewById<TextView>(R.id.tvQfaPECEnr)
             val tvTechDatePar = cardView.findViewById<TextView>(R.id.tvQfaPECTech)
 
-            // On injecte les donées
-            tvFI.text = "N°FI :  ${QrCodeDetail.fi}"
-            tvAffaire.text = "N°Affaire : ${QrCodeDetail.affaire}"
-            tvSasDate.text = "Créé le : ${QrCodeDetail.sasDate ?: "absent"}"
-            tvEnrDate.text = "Enregistré le : ${QrCodeDetail.enrDate ?: "absent"}"
-            tvTechDatePar.text = "Pris en charge le : ${QrCodeDetail.techDate ?: "absent"} par ${QrCodeDetail.techPar}"
+            // On injecte les données
+            tvFI.text = "N°FI :  ${detail.fi}"
+            tvAffaire.text = "N°Affaire : ${detail.affaire}"
+            tvSasDate.text = "Créé le : ${detail.sasDate ?: "absent"}"
+            tvEnrDate.text = "Enregistré le : ${detail.enrDate ?: "absent"}"
+            tvTechDatePar.text =
+                "Pris en charge le : ${detail.techDate ?: "absent"} par ${detail.techPar}"
+
             container.addView(cardView)
         }
 
         val scroll = ScrollView(this).apply {
             addView(container)
         }
-        val dialog = AlertDialog.Builder(this)
+        val builder = AlertDialog.Builder(this)
             .setCustomTitle(buildTitle2(currentQrId))
             .setView(scroll)
-            .setNegativeButton("Fermer", null)
-            .create()
+
+        if (fromListe) {
+            // Appelé depuis la liste : 2 boutons
+            builder
+                .setNegativeButton("Retour à la liste", null)
+                .setPositiveButton("Afficher l'écran complet") { _, _ ->
+                    // On prend la première entrée pour récupérer l'affaire
+                    val first = qrCodeDetailList.firstOrNull()
+                    if (first != null) {
+                        detailQrCodeDialog?.dismiss()
+                        listeQRDialog?.dismiss()
+                        loadByAffaireCode(first.affaire)
+                    }
+                }
+        } else {
+            // Appelé depuis l'écran principal : simple bouton Fermer
+            builder.setNegativeButton("Fermer", null)
+        }
+
+        val dialog = builder.create()
         detailQrCodeDialog = dialog
         dialog.show()
     }
@@ -1772,24 +1815,38 @@ class MainActivity : AppCompatActivity() {
     private fun showlisteQRDialog(listeqr: List<ListeQRRow>) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_liste_code, null)
         val rv = dialogView.findViewById<RecyclerView>(R.id.rvListeQR)
+        val btnFermer = dialogView.findViewById<Button>(R.id.btnFermerListeQR)
 
         rv.layoutManager = LinearLayoutManager(this)
-        rv.adapter = ListeQRAdapter(listeqr) { listeqr ->
-            // clic sur un Qr Code :
-            listeQRDialog?.dismiss()
-            // On recharge l'affaire comme d'habitude :
-            loadByAffaireCode(listeqr.affid)
+        rv.adapter = ListeQRAdapter(listeqr) { row ->
+            // 🔹 ANCIEN COMPORTEMENT :
+            // listeQRDialog?.dismiss()
+            // loadByAffaireCode(row.affid)
+
+            // 🔹 NOUVEAU : on ouvre la fiche détail
+            // 1. On récupère les détails du QR (à adapter à ton code réel)
+            loadAndShowDetailQrCode(row.qrid, fromListe = true)
         }
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle("Liste des QR Code")
             .setView(dialogView)
-            .setNegativeButton("Fermer", null)
             .create()
 
         listeQRDialog = dialog
+
+        btnFermer.setOnClickListener {
+            dialog.dismiss()
+        }
+
         dialog.show()
+
+        dialog.window?.setLayout(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
     }
+    //endregion
+
     private fun showToast(msg: String) =
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 
@@ -2198,6 +2255,4 @@ class MainActivity : AppCompatActivity() {
         //     if (etgId != null) onResult(etgId) else showToast("QR d'étagère invalide.")
         // }
     }
-
-    //endregion
 }

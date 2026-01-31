@@ -12,10 +12,10 @@ class ListeQRAdapter(
 ) : RecyclerView.Adapter<ListeQRAdapter.ViewHolder>() {
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val tvAffaire: TextView = itemView.findViewById(R.id.tvRowAffaire)
-        val tvFI: TextView = itemView.findViewById(R.id.tvRowFi)
-        val tvQrId: TextView = itemView.findViewById(R.id.tvRowQrId)
-        val tvDateSAS: TextView = itemView.findViewById(R.id.tvRowDateSAS)
+        val tvAffaire: TextView = itemView.findViewById(R.id.tvAffaire)
+        val tvFI: TextView = itemView.findViewById(R.id.tvFi)
+        val tvQrId: TextView = itemView.findViewById(R.id.tvQrCode)
+        val tvDateSAS: TextView = itemView.findViewById(R.id.tvDate)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {

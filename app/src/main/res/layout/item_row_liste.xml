@@ -3,38 +3,39 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:paddingTop="4dp"
-    android:paddingBottom="4dp">
+    android:paddingHorizontal="8dp"
+    android:paddingVertical="4dp">
 
     <TextView
-        android:id="@+id/tvRowQrId"
+        android:id="@+id/tvQrCode"
         android:layout_width="0dp"
+        android:layout_weight="3"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:text="OR-20250100001"
-        android:textSize="12sp"/>
+        android:textSize="12sp"
+        android:textStyle="bold" />
 
     <TextView
-        android:id="@+id/tvRowAffaire"
+        android:id="@+id/tvAffaire"
         android:layout_width="0dp"
+        android:layout_weight="4"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:text="OR26MMXXXX"
-        android:textSize="12sp"/>
+        android:paddingStart="6dp"
+        android:textSize="12sp" />
 
     <TextView
-        android:id="@+id/tvRowFi"
+        android:id="@+id/tvFi"
         android:layout_width="0dp"
+        android:layout_weight="3"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:text="F?/?????"
-        android:textSize="12sp"/>
+        android:paddingStart="6dp"
+        android:textSize="12sp" />
 
     <TextView
-        android:id="@+id/tvRowDateSAS"
+        android:id="@+id/tvDate"
         android:layout_width="0dp"
+        android:layout_weight="3"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:text="28/01/2026 14:10"
-        android:textSize="12sp"/>
+        android:gravity="end"
+        android:textSize="11sp" />
+
 </LinearLayout>

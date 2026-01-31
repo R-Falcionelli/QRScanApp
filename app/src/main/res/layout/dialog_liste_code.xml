@@ -74,4 +74,13 @@
         android:layout_weight="1"
         android:paddingTop="4dp" />
 
+    <!-- Bouton Fermer -->
+    <Button
+        android:id="@+id/btnFermerListeQR"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Fermer"
+        android:layout_gravity="end"
+        android:layout_marginTop="12dp" />
+
 </LinearLayout>
