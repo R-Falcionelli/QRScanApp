@@ -1819,12 +1819,12 @@ class MainActivity : AppCompatActivity() {
 
         rv.layoutManager = LinearLayoutManager(this)
         rv.adapter = ListeQRAdapter(listeqr) { row ->
-            // 🔹 ANCIEN COMPORTEMENT :
+            // ANCIEN COMPORTEMENT :
             // listeQRDialog?.dismiss()
             // loadByAffaireCode(row.affid)
 
-            // 🔹 NOUVEAU : on ouvre la fiche détail
-            // 1. On récupère les détails du QR (à adapter à ton code réel)
+            // NOUVEAU : on ouvre la fiche détail
+            // 1. On récupère les détails du QR
             loadAndShowDetailQrCode(row.qrid, fromListe = true)
         }
 
