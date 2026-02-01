@@ -66,6 +66,7 @@ import android.text.TextWatcher
 import android.view.ViewGroup
 import net.sourceforge.jtds.jdbc.DateTime
 import java.time.format.DateTimeFormatter
+import androidx.core.widget.doOnTextChanged
 
 class MainActivity : AppCompatActivity() {
     data class AffaireInfo(
@@ -1818,15 +1819,60 @@ class MainActivity : AppCompatActivity() {
         val btnFermer = dialogView.findViewById<Button>(R.id.btnFermerListeQR)
 
         rv.layoutManager = LinearLayoutManager(this)
-        rv.adapter = ListeQRAdapter(listeqr) { row ->
-            // ANCIEN COMPORTEMENT :
-            // listeQRDialog?.dismiss()
-            // loadByAffaireCode(row.affid)
 
-            // NOUVEAU : on ouvre la fiche détail
-            // 1. On récupère les détails du QR
+        val adapter = ListeQRAdapter(listeqr) { row ->
+            // Au clic sur une ligne : on réutilise ta logique existante
             loadAndShowDetailQrCode(row.qrid, fromListe = true)
         }
+        rv.adapter = adapter
+
+        val etFiltreQr = dialogView.findViewById<EditText>(R.id.etFiltreQr)
+        val etFiltreAffaire = dialogView.findViewById<EditText>(R.id.etFiltreAffaire)
+        val etFiltreFi = dialogView.findViewById<EditText>(R.id.etFiltreFi)
+
+        var currentQrFilter = ""
+        var currentAffFilter = ""
+        var currentFiFilter = ""
+
+        fun updateFilter() {
+            adapter.applyFilters(
+                qrFilter = currentQrFilter,
+                affaireFilter = currentAffFilter,
+                fiFilter = currentFiFilter
+            )
+        }
+
+        etFiltreQr.doOnTextChanged { text, _, _, _ ->
+            currentQrFilter = text?.toString() ?: ""
+            updateFilter()
+        }
+
+        etFiltreAffaire.doOnTextChanged { text, _, _, _ ->
+            currentAffFilter = text?.toString() ?: ""
+            updateFilter()
+        }
+
+        etFiltreFi.doOnTextChanged { text, _, _, _ ->
+            currentFiFilter = text?.toString() ?: ""
+            updateFilter()
+        }
+
+        val watcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                currentQrFilter = etFiltreQr.text?.toString() ?: ""
+                currentAffFilter = etFiltreAffaire.text?.toString() ?: ""
+                currentFiFilter = etFiltreFi.text?.toString() ?: ""
+                updateFilter()
+            }
+
+            override fun afterTextChanged(s: Editable?) {}
+        }
+// On l'attache aux 3 EditText
+        etFiltreQr.addTextChangedListener(watcher)
+        etFiltreAffaire.addTextChangedListener(watcher)
+        etFiltreFi.addTextChangedListener(watcher)
 
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)

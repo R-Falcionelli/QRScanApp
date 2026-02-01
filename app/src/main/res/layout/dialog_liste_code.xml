@@ -16,6 +16,38 @@
         android:gravity="center"
         android:paddingBottom="12dp" />
 
+    <!-- Barre de filtre -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+
+        <EditText
+            android:id="@+id/etFiltreQr"
+            android:layout_width="0dp"
+            android:layout_weight="2"
+            android:layout_height="wrap_content"
+            android:hint="Filtre QR"
+            android:inputType="text" />
+
+        <EditText
+            android:id="@+id/etFiltreAffaire"
+            android:layout_width="0dp"
+            android:layout_weight="3"
+            android:layout_height="wrap_content"
+            android:hint="Filtre Affaire"
+            android:inputType="text" />
+
+        <EditText
+            android:id="@+id/etFiltreFi"
+            android:layout_width="0dp"
+            android:layout_weight="2"
+            android:layout_height="wrap_content"
+            android:hint="Filtre FI"
+            android:inputType="text" />
+    </LinearLayout>
+
     <!-- Ligne d'entêtes -->
     <LinearLayout
         android:layout_width="match_parent"

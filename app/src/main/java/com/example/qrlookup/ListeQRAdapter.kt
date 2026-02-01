@@ -11,11 +11,24 @@ class ListeQRAdapter(
     private val onRowClick: (MainActivity.ListeQRRow) -> Unit
 ) : RecyclerView.Adapter<ListeQRAdapter.ViewHolder>() {
 
-    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    private val fullList = items.toList()           // copie immuable
+    private val displayList = items.toMutableList() // ce qu'on affiche
+    inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tvAffaire: TextView = itemView.findViewById(R.id.tvAffaire)
         val tvFI: TextView = itemView.findViewById(R.id.tvFi)
         val tvQrId: TextView = itemView.findViewById(R.id.tvQrCode)
         val tvDateSAS: TextView = itemView.findViewById(R.id.tvDate)
+
+        fun bind(item: MainActivity.ListeQRRow) {
+            tvQrId.text = item.qrid ?: "-"
+            tvAffaire.text = item.affid ?: "-"
+            tvFI.text = item.fi ?: "-"
+            tvDateSAS.text = item.dateSAS.toString() ?: "-"   // ou formaté
+
+            itemView.setOnClickListener {
+                onRowClick(item)
+            }
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -24,15 +37,36 @@ class ListeQRAdapter(
         return ViewHolder(view)
     }
 
-    override fun getItemCount(): Int = items.size
+    override fun getItemCount(): Int = displayList.size
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val liste = items[position]
+        holder.bind(displayList[position])
+    }
 
-        holder.tvAffaire.text = liste.affid
-        holder.tvFI.text = liste.fi
-        holder.tvQrId.text = liste.qrid
-        holder.tvDateSAS.text = liste.dateSAS.toString() ?: "-"
-        holder.itemView.setOnClickListener {onRowClick(liste)}
+    fun applyFilters(
+        qrFilter: String,
+        affaireFilter: String,
+        fiFilter: String
+    ) {
+        val qQr = qrFilter.trim()
+        val qAff = affaireFilter.trim()
+        val qFi = fiFilter.trim()
+
+        displayList.clear()
+
+        displayList.addAll(
+            fullList.filter { row ->
+                val matchQr =
+                    qQr.isEmpty() || row.qrid?.contains(qQr, ignoreCase = true) == true
+                val matchAff =
+                    qAff.isEmpty() || row.affid?.contains(qAff, ignoreCase = true) == true
+                val matchFi =
+                    qFi.isEmpty() || row.fi?.contains(qFi, ignoreCase = true) == true
+
+                matchQr && matchAff && matchFi
+            }
+        )
+
+        notifyDataSetChanged()
     }
 }
