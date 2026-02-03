@@ -762,6 +762,58 @@ class MainActivity : AppCompatActivity() {
     //endregion
 
     //region SQL
+    private fun regulariserQrPourBL(noBL: String) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            var nbLignes = 0
+            var hadError = false
+
+            try {
+                Class.forName("net.sourceforge.jtds.jdbc.Driver")
+                val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+
+                DriverManager.getConnection(url, "russe", "cia").use { conn ->
+                    conn.prepareCall("{ call spRegulariserFlashQRPourBL(?, ?) }").use { stmt ->
+                        stmt.setString(1, noBL)
+                        stmt.setString(2, "APP_ANDROID") // ou user courant
+
+                        val hasResultSet = stmt.execute()
+
+                        if (hasResultSet) {
+                            stmt.resultSet.use { rs ->
+                                if (rs.next()) {
+                                    nbLignes = rs.getInt("NbLignesMaj")
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                hadError = true
+                Log.e("REG_QR_BL", "Erreur régularisation : ${e.message}")
+                Log.e("REG_QR_BL", Log.getStackTraceString(e))
+            }
+
+            withContext(Dispatchers.Main) {
+                when {
+                    hadError -> Toast.makeText(
+                        this@MainActivity,
+                        "Erreur lors de la régularisation",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    else -> Toast.makeText(
+                        this@MainActivity,
+                        "Régularisation terminée ($nbLignes ligne(s) mise(s) à jour)",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+
+                // Optionnel : recharger la liste des affaires / QR pour ce BL
+                // reloadListeQrPourBL(noBL)
+            }
+        }
+    }
+
     private fun loadAndShowDetailQrCode(qrid: String, fromListe: Boolean) {
         lifecycleScope.launch(Dispatchers.IO) {
             var detailQrCode: List<QrCodeDetail> = emptyList()
@@ -1779,6 +1831,16 @@ class MainActivity : AppCompatActivity() {
         val dialog = AlertDialog.Builder(this)
             .setCustomTitle(buildTitle(bl, QteAff))
             .setView(scroll)
+            .setPositiveButton("Régulariser QR") { _, _ ->
+                AlertDialog.Builder(this)
+                    .setTitle("Confirmation")
+                    .setMessage("Régulariser les QR Code liés au BL $bl ?")
+                    .setPositiveButton("Oui") { _, _ ->
+                        regulariserQrPourBL(bl)
+                    }
+                    .setNegativeButton("Annuler", null)
+                    .show()
+            }
             .setNegativeButton("Fermer", null)
             .create()
 
