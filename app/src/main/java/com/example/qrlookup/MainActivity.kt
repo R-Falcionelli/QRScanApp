@@ -97,8 +97,8 @@ class MainActivity : AppCompatActivity() {
         var docs: String = "",
         var conclusion: String = "",
         var dateentre: String = "",
-        var dateenreg: String = ""
-        //var IdClient: String = ""
+        var dateenreg: String = "",
+        var numcde: String = ""
     )
 
     data class Affaire(
@@ -199,8 +199,6 @@ class MainActivity : AppCompatActivity() {
         val tvType: TextView = findViewById(R.id.tvType)
         val tvSerie: TextView = findViewById(R.id.tvSerie)
         val tvMarquage: TextView = findViewById(R.id.tvMarquage)
-        //val tvNumBL:TextView = findViewById(R.id.tvNumBL)
-        //val tvDateBL:TextView = findViewById(R.id.tvDateBL)
         val tvDateCrea: TextView = findViewById(R.id.tvDateCrea)
         val tvPar: TextView = findViewById(R.id.tvPar)
         val tvNumFact:TextView = findViewById(R.id.tvNumFact)
@@ -209,7 +207,6 @@ class MainActivity : AppCompatActivity() {
         val tvDateEntre:TextView = findViewById(R.id.tvDateEntre)
         val tvPosit: TextView = findViewById(R.id.tvPosit)
         val tvOpReal: TextView = findViewById(R.id.tvOpReal)
-        //val tvDocs: TextView = findViewById( R.id.tvDocs)
         val tvDateFin: TextView = findViewById( R.id.tvDateFin)
         val tvConclusion: TextView = findViewById( R.id.tvConclusion)
         val tvDateCF: TextView = findViewById( R.id.tvDateCF)
@@ -375,15 +372,17 @@ class MainActivity : AppCompatActivity() {
                                 cast(floor(tAffaire.PositAff) as varchar(4)) as PositAff,
                                 case when tAffaire.FrnIdSt is not null and tAffaire.FrnIdSt<>0 then cast(FrnIdST as varchar(4)) + ' ' + FrnNom else 'N/A' end [S/T],
                                 case when tAffaire.EmpID is not null and tAffaire.EmpID<>'' then tEmployee.EmpPrenom + ' ' + tEmployee.EmpNom else '' end [Distrib],
-                                DomaineLibelle [Domaine], QrId
+                                DomaineLibelle [Domaine], QrId, 
+                                case when tHa.HaCdeID is not null then tHa.HaCdeID else '' end [N°Cde]
                         FROM tFlashQR
                         JOIN trEtageres ON tFlashQR.EtgId = trEtageres.EtgId
                         JOIN tAffaire ON tAffaire.AffID = tFlashQR.AffID
+                        JOIN tClient ON tClient.CltId = tAffaire.CltId
                         LEFT JOIN tAffaireDomaine ON tAffaireDomaine.DomaineId = tAffaire.AffDomaineId
                         LEFT JOIN tEmployee ON tEmployee.EmpID = tAffaire.EmpID
                         LEFT JOIN tFournisseur ON tFournisseur.FrnID = tAffaire.FrnIdSt
-                        LEFT JOIN tBlE2MEntete on tBlE2MEntete.BlmRefE2M = tAffaire.ExpdID
-                        JOIN tClient ON tClient.CltId = tAffaire.CltId
+                        LEFT JOIN tBlE2MEntete ON tBlE2MEntete.BlmRefE2M = tAffaire.ExpdID
+                        LEFT JOIN tHa ON tHa.AffID = tAffaire.AffID
                         WHERE tAffaire.AffNoFI = ? and tAffaire.OffreID not in('RP', 'SRP', 'SFD', 'ADD')
                     """.trimIndent())
 
@@ -407,13 +406,15 @@ class MainActivity : AppCompatActivity() {
                                    cast(floor(tAffaire.PositAff) as varchar(4)) as PositAff,
                                    case when tAffaire.FrnIdSt is not null and tAffaire.FrnIdSt<>0 then cast(FrnIdST as varchar(4)) + ' ' + FrnNom else 'N/A' end [S/T],
                                    case when tAffaire.EmpID is not null and tAffaire.EmpID<>'' then tEmployee.EmpPrenom + ' ' + tEmployee.EmpNom else '' end [Distrib],
-                                   DomaineLibelle [Domaine], '' [QrId]
-                            FROM tAffaire         
+                                   DomaineLibelle [Domaine], '' [QrId],
+                                   case when tHa.HaCdeID is not null then tHa.HaCdeID else '' end [N°Cde]
+                            FROM tAffaire
+                            JOIN tClient ON tClient.CltId = tAffaire.CltId
                             LEFT JOIN tAffaireDomaine ON tAffaireDomaine.DomaineId = tAffaire.AffDomaineId
                             LEFT JOIN tEmployee ON tEmployee.EmpID = tAffaire.EmpID
                             LEFT JOIN tFournisseur ON tFournisseur.FrnID = tAffaire.FrnIdSt
-                            LEFT JOIN tBlE2MEntete on tBlE2MEntete.BlmRefE2M = tAffaire.ExpdID                                         
-                            JOIN tClient ON tClient.CltId = tAffaire.CltId
+                            LEFT JOIN tBlE2MEntete on tBlE2MEntete.BlmRefE2M = tAffaire.ExpdID  
+                            LEFT JOIN tHa ON tHa.AffID = tAffaire.AffID                                                                                               
                             WHERE tAffaire.AffNoFI = ? and tAffaire.OffreID not in('RP', 'SRP', 'SFD', 'ADD')
                         """.trimIndent())
 
@@ -430,6 +431,7 @@ class MainActivity : AppCompatActivity() {
                         runOnUiThread {
                             createDocButtons(current_info?.docs.orEmpty())
                             createBLButton(current_info?.numbl.orEmpty(), current_info?.datebl.orEmpty())
+                            createCdeButton( current_info?.numcde.orEmpty())
                         }
                     } else {
                         stmt2.setString(1, inputCode)
@@ -444,6 +446,7 @@ class MainActivity : AppCompatActivity() {
                             runOnUiThread {
                                 createDocButtons(current_info?.docs.orEmpty())
                                 createBLButton(current_info?.numbl.orEmpty(), current_info?.datebl.orEmpty())
+                                createCdeButton(current_info?.numcde.orEmpty())
                             }
                             rs2.close()
                             stmt2.close()
@@ -468,29 +471,21 @@ class MainActivity : AppCompatActivity() {
                     // Changement dynamique de la couleur selon le résultat
                     if (found){
                         if (info.etgCode == "A00") {
-//                            tvResult.setBackgroundColor(Color.RED)
-//                            tvResult.setTextColor(Color.WHITE)
                             tvLblEmp.setBackgroundColor(Color.RED)
                             tvLblEmp.setTextColor(Color.WHITE)
                             tvLblEmp.isVisible = true
                             tvQrCode.isVisible = true
-                            //tvResult.isVisible = true
-                            //Toast.makeText(this, "Appareil non rangé sur étagère ou expédié", Toast.LENGTH_LONG).show()
                         } else {
                             if (info.etgCode=="")
                             {
                                 tvLblEmp.isVisible = false
                                 tvQrCode.isVisible = false
-                                //tvResult.isVisible = false
                             } else {
-//                                tvResult.setBackgroundColor(Color.parseColor("#006400")) // vert foncé
-//                                tvResult.setTextColor(Color.WHITE)
                                 tvLblEmp.setBackgroundColor(Color.parseColor("#006400")) // vert foncé
                                 tvLblEmp.setTextColor(Color.WHITE)
                                 tvLblEmp.isVisible = true
                                 tvQrCode.isVisible = true
                                 tvQrCode.setTextColor(Color.RED)
-                                //tvResult.isVisible = true
                             }
                         }
 
@@ -506,10 +501,8 @@ class MainActivity : AppCompatActivity() {
                         setLabelValueStyle(tvType, "Type : ", info.type , true, false, R.color.black, R.color.black)
                         setLabelValueStyle(tvSerie, "N°Série : ", info.serie , true, false, R.color.black, R.color.black)
                         setLabelValueStyle(tvMarquage, "Marquage : ", info.marquage , true, false, R.color.black, R.color.black)
-                        //setLabelValueStyle(tvNumBL, "N°BL : ", info.numbl , true, false, R.color.black, R.color.black)
                         setLabelValueStyle(tvDateEntre, "Entré le : ", info.dateentre , true, false,R.color.black, R.color.black)
                         setLabelValueStyle(tvDateEnreg, "Enregistré le : ", info.dateenreg , true, false,R.color.black, R.color.black)
-                        //setLabelValueStyle(tvDateBL, "", info.datebl , true, false,R.color.black, R.color.black)
                         setLabelValueStyle(tvDateCrea, "Créé le : ", info.datecrea , true, false,R.color.black, R.color.black)
                         setLabelValueStyle(tvPar, "Par : ", info.par , true, true, R.color.black, R.color.par)
                         setLabelValueStyle(tvNumFact, "N°Fact. : ", info.numfact , true, false, R.color.black, R.color.black)
@@ -531,7 +524,7 @@ class MainActivity : AppCompatActivity() {
                         chkCF.isChecked = (info.datecf != "")
                         chkFinterv.isChecked = info.finterv
                         setLabelValueStyle(tvOpReal, "Opérations : ", info.opreal , true, false)
-                        //setLabelValueStyle(tvDocs, "", info.docs , true, true, R.color.black, R.color.black)
+
                         runOnUiThread {
                             updateConclusion(info.conclusion.toString().trim().uppercase())
                         }
@@ -549,6 +542,9 @@ class MainActivity : AppCompatActivity() {
 
             val containerBL = findViewById<LinearLayout>(R.id.BLContainer)
             containerBL.removeAllViews()
+
+            val containerCDE = findViewById<LinearLayout>(R.id.CDEContainer)
+            containerCDE.removeAllViews()
 
             tvNumAff.text = "N°Affaire"
             tvNumFI.text = "N°FI"
@@ -637,6 +633,58 @@ class MainActivity : AppCompatActivity() {
     }
     //endregion
 
+    //region Cde
+    private fun createCdeButton(numcde: String) {
+        val container = findViewById<LinearLayout>(R.id.CDEContainer)
+        container.removeAllViews()
+        if (numcde.isBlank()) return
+
+        val params = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            setMargins(0, 0, 16, 14)   // ← espace entre boutons
+        }
+
+        val btn = Button(this).apply{
+            text = "CDE N°$numcde"
+            textSize = 12f
+            setTextColor(Color.WHITE)
+            minHeight = 0
+            minimumHeight = 0
+            setPadding(20, 8, 20, 8)
+            background = ContextCompat.getDrawable(context, R.drawable.doc_button)
+            layoutParams = params
+
+            // 🔥 Ajout de l’icône à gauche
+            setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_file_24dp, 0, 0, 0)
+            compoundDrawablePadding = 10  // Espace entre icône et texte
+        }
+
+        btn.setOnClickListener { onCDEClicked(numcde) }
+        container.addView(btn)
+    }
+
+    private fun onCDEClicked(numcde:String){
+        val cde = current_info?.numcde?.trim().orEmpty()
+        // Coroutine liée à l'Activity
+        lifecycleScope.launch(Dispatchers.IO){
+            // Requête
+            val affaires = getAffairesByCde(cde)
+            withContext(Dispatchers.Main) {
+                if (affaires.isEmpty()) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Aucune affaire trouvée pour le BL $cde",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    showAffairesDialog(affaires, numcde)
+                }
+            }
+        }
+    }
+    //endregion
     //region Docs
     // Sépare sur +, espaces, virgules, point-virgule (ex: "CV + RM, CEC")
     //val docs = Regex("[+ ,;]+").split(docsString).map { it.trim() }.filter { it.isNotEmpty() }
@@ -1251,6 +1299,46 @@ class MainActivity : AppCompatActivity() {
         return result
     }
 
+    private fun getAffairesByCde(cde: String): List<Affaire> {
+        val result = mutableListOf<Affaire>()
+
+        try {
+            Class.forName("net.sourceforge.jtds.jdbc.Driver")
+            val url = "jdbc:jtds:sqlserver://10.135.214.34:1433/SIA"
+
+            DriverManager.getConnection(url, "russe", "cia").use { conn ->
+                conn.prepareStatement(
+                    """
+                SELECT tAffaire.AffID, AffNoFI, AffNoClientInterne, AffSerie
+                FROM tAffaire
+                JOIN tHa on tHa.AffID = tAffaire.AffID
+                WHERE HaCdeID = ? 
+                ORDER BY AffNoFI
+                """.trimIndent()
+                ).use { ps ->
+                    ps.setString(1, cde)
+                    ps.executeQuery().use { rs ->
+                        while (rs.next()) {
+                            val affId = rs.getString("AffID")
+                            val fi = rs.getString("AffNoFI")
+                            val marquage = rs.getString("AffNoClientInterne")
+                            val serie = rs.getString("AffSerie")
+
+                            // Le texte du bouton
+                            val label = "$affId - $fi - ($marquage)"
+
+                            result.add(Affaire(affId, fi, marquage, serie, label))
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("AFF_SCAN", "Erreur getAffairesByCde : ${e.message}")
+            Log.e("AFF_SCAN", Log.getStackTraceString(e))
+        }
+
+        return result
+    }
     //endregion
 
 
@@ -1271,6 +1359,7 @@ class MainActivity : AppCompatActivity() {
         info.dateentre = safeGetString(rs, "DateEntre")
         info.dateenreg = safeGetString(rs, "DateEnreg")
         info.numbl  = safeGetString(rs, "NumBL")
+        info.numcde  = safeGetString(rs, "N°Cde")
         info.datebl = safeGetString(rs, "DateBL")
         info.datecrea = safeGetString(rs, "DateCrea")
         info.par = safeGetString(rs, "Par")
@@ -1697,9 +1786,14 @@ class MainActivity : AppCompatActivity() {
         return src.trim().uppercase().replace(" ", "").replace("-", "").replace("/", "")
     }
 
+    private fun libelleBL(bl: String): String =
+        if (bl.startsWith("COR", ignoreCase = true))
+            "Affaires du N°Cde "
+        else
+            "Affaires du N°BL "
     private fun buildTitle(bl:String, QteAff: Int): TextView{
         val title = TextView(this).apply {
-            text = "Affaires du BL $bl (Qté : $QteAff)"
+            text = "${libelleBL(bl)} $bl (Qté : $QteAff)"
             setPadding(20, 40, 20, 20)
             background = ContextCompat.getDrawable(context, R.drawable.titlebl_button)
             textSize = 18f
@@ -1828,21 +1922,25 @@ class MainActivity : AppCompatActivity() {
             addView(container)
         }
 
-        val dialog = AlertDialog.Builder(this)
+        val builder = AlertDialog.Builder(this)
             .setCustomTitle(buildTitle(bl, QteAff))
             .setView(scroll)
-            .setPositiveButton("Régulariser QR") { _, _ ->
-                AlertDialog.Builder(this)
-                    .setTitle("Confirmation")
-                    .setMessage("Régulariser les QR Code liés au BL $bl ?")
-                    .setPositiveButton("Oui") { _, _ ->
-                        regulariserQrPourBL(bl)
-                    }
-                    .setNegativeButton("Annuler", null)
-                    .show()
-            }
             .setNegativeButton("Fermer", null)
-            .create()
+
+            if (!bl.startsWith("COR", ignoreCase = true)){
+                builder.setPositiveButton("Régulariser QR") { _, _ ->
+                    AlertDialog.Builder(this)
+                        .setTitle("Confirmation")
+                        .setMessage("Régulariser les QR Code liés au N°BL $bl ?")
+                        .setPositiveButton("Oui") { _, _ ->
+                            regulariserQrPourBL(bl)
+                        }
+                        .setNegativeButton("Annuler", null)
+                        .show()
+                }
+            }
+
+            val dialog = builder.create()
 
         currentAffairesDialog = dialog
         dialog.show()
