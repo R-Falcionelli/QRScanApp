@@ -1879,6 +1879,7 @@ class MainActivity : AppCompatActivity() {
         detailQrCodeDialog = dialog
         dialog.show()
     }
+    @SuppressLint("SuspiciousIndentation")
     private fun showAffairesDialog(affaires: List<Affaire>, bl:String) {
 
         val container = LinearLayout(this).apply {
@@ -1927,20 +1928,29 @@ class MainActivity : AppCompatActivity() {
             .setView(scroll)
             .setNegativeButton("Fermer", null)
 
-            if (!bl.startsWith("COR", ignoreCase = true)){
-                builder.setPositiveButton("Régulariser QR") { _, _ ->
-                    AlertDialog.Builder(this)
-                        .setTitle("Confirmation")
-                        .setMessage("Régulariser les QR Code liés au N°BL $bl ?")
-                        .setPositiveButton("Oui") { _, _ ->
-                            regulariserQrPourBL(bl)
-                        }
-                        .setNegativeButton("Annuler", null)
-                        .show()
-                }
-            }
 
-            val dialog = builder.create()
+        val code = bl.trim()
+
+        val label = if (code.startsWith("COR", ignoreCase = true)) {
+            "N°Cde"
+        } else {
+            "N°BL"
+        }
+
+        val message = "Régulariser les QR Code liés au $label $code ?"
+
+        builder.setPositiveButton("Régulariser QR") { _, _ ->
+            AlertDialog.Builder(this)
+                .setTitle("Confirmation")
+                .setMessage(message)
+                .setPositiveButton("Oui") { _, _ ->
+                    regulariserQrPourBL(code) // idéalement une fonction unique
+                }
+                .setNegativeButton("Annuler", null)
+                .show()
+        }
+
+        val dialog = builder.create()
 
         currentAffairesDialog = dialog
         dialog.show()
