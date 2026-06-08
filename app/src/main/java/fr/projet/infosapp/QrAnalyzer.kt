@@ -1,4 +1,4 @@
-package com.example.qrlookup
+package fr.projet.infosapp
 
 import androidx.annotation.OptIn
 import androidx.camera.core.ImageAnalysis

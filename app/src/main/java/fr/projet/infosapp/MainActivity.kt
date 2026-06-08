@@ -1,4 +1,4 @@
-package com.example.qrlookup
+package fr.projet.infosapp
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.DatePickerDialog
@@ -52,7 +52,6 @@ import com.hierynomus.msfscc.FileAttributes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.w3c.dom.Text
 import java.sql.Connection
 import java.util.EnumSet
 import androidx.recyclerview.widget.RecyclerView
@@ -64,8 +63,6 @@ import java.util.Calendar
 import java.util.Locale
 import android.text.TextWatcher
 import android.view.ViewGroup
-import net.sourceforge.jtds.jdbc.DateTime
-import java.time.format.DateTimeFormatter
 import androidx.core.widget.doOnTextChanged
 
 class MainActivity : AppCompatActivity() {

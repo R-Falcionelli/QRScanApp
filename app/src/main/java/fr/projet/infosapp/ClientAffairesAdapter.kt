@@ -1,4 +1,4 @@
-package com.example.qrlookup
+package fr.projet.infosapp
 
 import android.view.LayoutInflater
 import android.view.View

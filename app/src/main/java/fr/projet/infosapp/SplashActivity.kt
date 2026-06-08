@@ -1,10 +1,8 @@
-package com.example.qrlookup
+package fr.projet.infosapp
 
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import android.os.Handler
-import android.os.Looper
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.ImageView

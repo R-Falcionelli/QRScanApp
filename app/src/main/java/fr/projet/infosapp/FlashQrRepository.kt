@@ -1,12 +1,6 @@
-package com.example.qrlookup
-import android.content.Context
-import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
+package fr.projet.infosapp
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.lifecycle.lifecycleScope
-import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.Timestamp
 import java.sql.Date

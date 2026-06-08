@@ -1,4 +1,4 @@
-package com.example.qrlookup
+package fr.projet.infosapp
 
 import android.app.Activity
 import android.content.Intent
