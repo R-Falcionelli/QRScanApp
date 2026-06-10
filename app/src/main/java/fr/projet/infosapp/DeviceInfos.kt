@@ -1,0 +1,36 @@
+package fr.projet.infosapp
+
+import java.util.Date
+data class DeviceInfos(
+    val fqrId: Int,
+    val qrCode: String,
+    val etgCode: String,
+    val affaireId: String,
+    val numFI: String,
+    val clientId: Int,
+    val nomClient: String,
+    val designation: String,
+    val marque: String,
+    val type: String,
+    val numSerie: String,
+    val marquage: String,
+    val blId: String,
+    val dateBL: String?,
+    val dateCreationBL: String?,
+    val parBL: String,
+    val factId: String,
+    val dateFact: String?,
+    val dateEntree: String?,
+    val dateEnreg: String?,
+    val finInterv: Boolean,
+    val datefinInterv: String?,
+    val dateCtrlFinal: String?,
+    val opreal: String,
+    val docs: String,
+    val conclusion: String,
+    val positAff: String,
+    val numST: String,
+    val distribTech: String,
+    val domaine: String,
+    val cdeST: String
+)
